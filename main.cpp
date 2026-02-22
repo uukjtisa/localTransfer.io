@@ -10,40 +10,409 @@
 #include "database.h"
 #include "http_server.h"
 
+// ────────────────────────────────────────────────────────────────
+//  LINE EDITOR  (history + cursor movement + autocomplete)
+// ────────────────────────────────────────────────────────────────
+static const int PROMPT_LEN = 20;  // strlen("  localTransfer.io> ")
+static const int MAX_AC     = 8;   // max suggestions shown at once
+
+// ── Completion table ──
+struct CmdCompletion { const char* full; const char* hint; };
+static const CmdCompletion COMPLETIONS[] = {
+    {"/help",                             "Show command reference"},
+    {"/verbose",                          "Toggle verbose logging"},
+    {"/verbose on",                       "Enable verbose logging"},
+    {"/verbose off",                      "Disable verbose logging"},
+    {"/status",                           "Server status & statistics"},
+    {"/files",                            "List received files"},
+    {"/port",                             "Show active port"},
+    {"/ips",                              "Show network addresses"},
+    {"/saving_dir_change ",               "Change saving directory  (needs: path)"},
+    {"/sdc ",                             "Alias: saving_dir_change (needs: path)"},
+    {"/disk_space",                       "Disk & upload limit info"},
+    {"/ds",                               "Alias: disk_space"},
+    {"/storage_limit off",                "Remove storage cap"},
+    {"/storage_limit ",                   "Set storage cap  (e.g. 50gb, 500mb)"},
+    {"/sl off",                           "Remove storage cap (alias)"},
+    {"/sl ",                              "Alias: storage_limit"},
+    {"/database --list",                  "List database entries"},
+    {"/database --reload",                "Reload database from disk"},
+    {"/database --open",                  "Open database.json in editor"},
+    {"/database --clear",                 "Clear entries (keep files on disk)"},
+    {"/database --delete-files",          "Clear entries AND delete files"},
+    {"/database --push ",                 "Push a host file into database (needs: path)"},
+    {"/db --list",                        "Alias: database --list"},
+    {"/db --reload",                      "Alias: database --reload"},
+    {"/db --open",                        "Alias: database --open"},
+    {"/db --clear",                       "Alias: database --clear"},
+    {"/db --delete-files",                "Alias: database --delete-files"},
+    {"/db --push ",                       "Alias: database --push (needs: path)"},
+    {"/ff --new ",                        "Add forwarding folder  (needs: path)"},
+    {"/ff --remove ",                     "Remove forwarding folder  (needs: id)"},
+    {"/ff --list",                        "List all forwarding folders"},
+    {"/ff --enable-subfolders ",          "Enable subfolder scanning  (needs: id)"},
+    {"/ff --disable-subfolders ",         "Disable subfolder scanning  (needs: id)"},
+    {"/forwarding_folder --new ",         "Alias: ff --new"},
+    {"/pastebin --clear",                 "Clear pastebin content"},
+    {"/pastebin --overwrite ",            "Replace pastebin  (needs: \"text\")"},
+    {"/pastebin --append ",               "Append to pastebin  (needs: \"text\")"},
+    {"/pastebin --append-nl ",            "Append with newlines  (needs: \"text\")"},
+    {"/pastebin --copy",                  "Copy pastebin to clipboard"},
+    {"/pb --copy",                        "Alias: pastebin --copy"},
+    {"/clear",                            "Clear terminal (reprint banner)"},
+    {"/clear --absolute",                 "Clear terminal (no banner)"},
+    {"/exit",                             "Stop server and exit"},
+    {"/quit",                             "Alias: exit"},
+};
+static const int N_COMPLETIONS = (int)(sizeof(COMPLETIONS)/sizeof(COMPLETIONS[0]));
+
+// ── Command history ──
+static std::vector<std::string> g_history;
+static const int MAX_HISTORY = 100;
+
+// ── Build match list for a given input ──
+static std::vector<int> getCompletions(const std::string& input) {
+    std::vector<int> out;
+    if (input.empty() || (input[0] != '/' && input[0] != '\\')) return out;
+    std::string lo = input;
+    std::transform(lo.begin(), lo.end(), lo.begin(), ::tolower);
+    if (!lo.empty() && lo[0] == '\\') lo[0] = '/';
+    for (int i = 0; i < N_COMPLETIONS; i++) {
+        std::string full = COMPLETIONS[i].full;
+        std::transform(full.begin(), full.end(), full.begin(), ::tolower);
+        if (full.rfind(lo, 0) == 0 || lo.rfind(full, 0) == 0) {
+            out.push_back(i);
+            if ((int)out.size() >= MAX_AC) break;
+        }
+    }
+    return out;
+}
+
+// ── Console helpers ──
+//static void consoleMove(SHORT x, SHORT y) {
+//    SetConsoleCursorPosition(g_hCon, {x, y});
+//}
+//static void consoleFill(SHORT x, SHORT y, int len, char c = ' ') {
+//    DWORD wr; COORD pos = {x, y};
+//    FillConsoleOutputCharacterA(g_hCon, c, len, pos, &wr);
+//    FillConsoleOutputAttribute(g_hCon, 7, len, pos, &wr);
+//}
+
+// Tracks exactly how many characters were printed on the prompt line last
+// time renderLine ran.  Used to erase precisely that many — no dependency
+// on window width (which is unreliable until conhost fires WM_SIZE).
+static int g_lastPromptPrintedLen = 0;
+
+// ── Render prompt line (single-line, \r-anchored, no row tracking needed) ──
+// Called while holding g_logMtx.
+static void renderLine(const std::string& buf, int cursorPos, const std::vector<int>& acIndices) {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (!GetConsoleScreenBufferInfo(g_hCon, &csbi)) return;
+
+    // Step 1: \r goes to col 0.  Flush immediately so the next Win32 call
+    // reads the cursor position AFTER the carriage-return lands.
+    std::cout << '\r';
+    std::cout.flush();
+
+    // Step 2: Get the actual current row and update g_promptRow.
+    GetConsoleScreenBufferInfo(g_hCon, &csbi);
+    SHORT pRow = csbi.dwCursorPosition.Y;
+    g_promptRow.store(pRow);
+
+    // Step 3: Erase exactly as many chars as we printed last time.
+    // This avoids any dependency on window width — we never fill more than
+    // we actually wrote, so we can never wrap onto the next line.
+    DWORD wr;
+    COORD lineStart = {0, pRow};
+    int clearLen = g_lastPromptPrintedLen;
+    if (clearLen > 0) {
+        FillConsoleOutputCharacterA(g_hCon, ' ', clearLen, lineStart, &wr);
+        FillConsoleOutputAttribute(g_hCon, 7,   clearLen, lineStart, &wr);
+    }
+    SetConsoleCursorPosition(g_hCon, lineStart);
+
+    // Step 4: Reprint prompt.
+    SetConsoleTextAttribute(g_hCon, 11);
+    std::cout << "  localTransfer.io> ";
+    int printed = PROMPT_LEN;
+
+    // Step 5: Buffer text.
+    SetConsoleTextAttribute(g_hCon, 7);
+    for (char c : buf) std::cout << c;
+    printed += (int)buf.size();
+
+    // Step 6: Ghost text (best match remainder, dim grey).
+    if (!acIndices.empty()) {
+        const char* full = COMPLETIONS[acIndices[0]].full;
+        std::string f = full;
+        std::string lo = buf;
+        std::transform(lo.begin(), lo.end(), lo.begin(), ::tolower);
+        std::string flo = f;
+        std::transform(flo.begin(), flo.end(), flo.begin(), ::tolower);
+        if (flo.rfind(lo, 0) == 0 && f.size() > buf.size()) {
+            std::string ghost = f.substr(buf.size());
+            SetConsoleTextAttribute(g_hCon, 8);
+            for (char c : ghost) std::cout << c;
+            printed += (int)ghost.size();
+        }
+    }
+
+    // Record how many chars we actually printed this frame.
+    g_lastPromptPrintedLen = printed;
+
+    SetConsoleTextAttribute(g_hCon, 7);
+
+    // Step 7: Reposition cursor at the correct column within the buffer.
+    SetConsoleCursorPosition(g_hCon, {(SHORT)(PROMPT_LEN + cursorPos), pRow});
+    std::cout.flush();
+}
+
+// ── Command conflict/validation check ──
+static std::string validateCommand(const std::string& raw) {
+    std::string cmd = raw;
+    if (!cmd.empty() && cmd[0] == '\\') cmd[0] = '/';
+    std::string lo = cmd;
+    std::transform(lo.begin(), lo.end(), lo.begin(), ::tolower);
+
+    // /database: mutually exclusive subcommands
+    if (lo.rfind("/database", 0) == 0 || lo.rfind("/db ", 0) == 0 || lo == "/db") {
+        int flags = 0;
+        if (lo.find("--list") != std::string::npos || lo.find(" -l") != std::string::npos)     flags++;
+        if (lo.find("--reload") != std::string::npos || lo.find(" -r") != std::string::npos)   flags++;
+        if (lo.find("--open") != std::string::npos || lo.find(" -o") != std::string::npos)     flags++;
+        if (lo.find("--clear") != std::string::npos && lo.find("--delete") == std::string::npos &&
+            (lo.find(" -c") != std::string::npos || lo.find("--clear") != std::string::npos))   flags++;
+        if (lo.find("--delete-files") != std::string::npos || lo.find(" -df") != std::string::npos) flags++;
+        if (lo.find("--push") != std::string::npos)                                            flags++;
+        if (flags > 1) return "⚠ /database: only one subcommand at a time. First one wins.";
+    }
+
+    // /ff: conflicting enable/disable on same line
+    if (lo.rfind("/ff", 0) == 0 || lo.rfind("/forwarding_folder", 0) == 0) {
+        bool hasEnable  = lo.find("--enable-subfolders") != std::string::npos || lo.find("-es") != std::string::npos;
+        bool hasDisable = lo.find("--disable-subfolders") != std::string::npos || lo.find("-ds") != std::string::npos;
+        if (hasEnable && hasDisable)
+            return "⚠ /ff: --enable-subfolders and --disable-subfolders cannot be used together.";
+        bool hasNew  = lo.find("--new") != std::string::npos || lo.find(" -n ") != std::string::npos;
+        bool hasRm   = lo.find("--remove") != std::string::npos || lo.find("-rm") != std::string::npos;
+        if (hasNew && hasRm)
+            return "⚠ /ff: --new and --remove cannot be used together.";
+    }
+
+    // /verbose: on + off together
+    if (lo.rfind("/verbose", 0) == 0) {
+        bool hasOn  = lo.find(" on") != std::string::npos;
+        bool hasOff = lo.find(" off") != std::string::npos;
+        if (hasOn && hasOff)
+            return "⚠ /verbose: 'on' and 'off' cannot be specified together.";
+    }
+
+    // /storage_limit: needs a value
+    if ((lo == "/storage_limit" || lo == "/sl") ) {
+        // no arg = show current, that's valid
+    }
+
+    // /saving_dir_change: needs a path arg
+    if ((lo == "/saving_dir_change" || lo == "/sdc"))
+        return "⚠ /saving_dir_change requires a path argument. Usage: /sdc <path>";
+
+    // /ff --new with no path
+    if ((lo == "/ff --new" || lo == "/ff -n" || lo == "/forwarding_folder --new"))
+        return "⚠ /ff --new requires a directory path. Usage: /ff --new <path>";
+
+    // /ff --remove with no id
+    if (lo == "/ff --remove" || lo == "/ff -rm")
+        return "⚠ /ff --remove requires a folder ID. Usage: /ff --remove <id>  (see /ff --list)";
+
+    // /ff --enable/disable-subfolders with no id
+    if (lo == "/ff --enable-subfolders"  || lo == "/ff -es")
+        return "⚠ --enable-subfolders requires a folder ID. Usage: /ff --enable-subfolders <id>";
+    if (lo == "/ff --disable-subfolders" || lo == "/ff -ds")
+        return "⚠ --disable-subfolders requires a folder ID. Usage: /ff --disable-subfolders <id>";
+
+    // /database --push with no path
+    if (lo == "/database --push" || lo == "/db --push")
+        return "⚠ --push requires a file path. Usage: /db --push <path>";
+
+    return ""; // valid
+}
+
+// ── Main readline function ──
 static std::string readLine() {
-    { std::lock_guard<std::mutex> lk(g_logMtx); g_inputBuf.clear(); }
-    g_inputActive = true;
+    std::string buf;
+    int cursorPos = 0;
+    int histIdx   = (int)g_history.size();
+    std::string histSaved;
+    std::vector<int> acIndices;
+    int acTabIdx = 0; // which completion Tab cycles through
+
+    // Init prompt row
+    {
+        std::lock_guard<std::mutex> lk(g_logMtx);
+        g_inputBuf.clear();
+        g_inputCursorPos.store(0);
+        g_acShownLines.store(0);
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        if (GetConsoleScreenBufferInfo(g_hCon, &csbi))
+            g_promptRow.store(csbi.dwCursorPosition.Y);
+    }
+    g_inputActive.store(true);
+
+    auto refreshAc = [&]() {
+        acIndices = getCompletions(buf);
+        acTabIdx  = 0;
+    };
+
+    auto redraw = [&]() {
+        std::lock_guard<std::mutex> lk(g_logMtx);
+        g_inputBuf = buf;
+        g_inputCursorPos.store(cursorPos);
+        renderLine(buf, cursorPos, acIndices);
+    };
+
+    refreshAc();
+    redraw();
 
     while (g_running) {
         int c = _getch();
+
+        // ── Enter ──
         if (c == '\r' || c == '\n') {
-            g_inputActive = false;
-            std::string result;
-            { std::lock_guard<std::mutex> lk(g_logMtx);
-              std::cout << "\n"; result = g_inputBuf; }
-            return result;
-        } else if (c == 8) { // backspace
-            std::lock_guard<std::mutex> lk(g_logMtx);
-            if (!g_inputBuf.empty()) {
-                g_inputBuf.pop_back();
-                std::cout << "\b \b";
+            {
+                std::lock_guard<std::mutex> lk(g_logMtx);
+                g_inputBuf = buf;
+                g_inputCursorPos.store((int)buf.size());
+                g_acShownLines.store(0);
+                // Clear ghost, position at end of buffer, newline
+                CONSOLE_SCREEN_BUFFER_INFO csbi;
+                GetConsoleScreenBufferInfo(g_hCon, &csbi);
+                SHORT pRow = (SHORT)g_promptRow.load();
+                // Erase ghost text: use g_lastPromptPrintedLen so we only
+                // clear what was actually printed — never the full buffer width.
+                int ghostStart = PROMPT_LEN + (int)buf.size();
+                int ghostLen   = g_lastPromptPrintedLen - ghostStart;
+                if (ghostLen > 0) {
+                    DWORD wr; COORD pos = {(SHORT)ghostStart, pRow};
+                    FillConsoleOutputCharacterA(g_hCon, ' ', ghostLen, pos, &wr);
+                }
+                SetConsoleCursorPosition(g_hCon, {(SHORT)(PROMPT_LEN + (int)buf.size()), pRow});
+                std::cout << "\n";
                 std::cout.flush();
             }
-        } else if (c == 3) { // Ctrl+C
-            g_inputActive = false;
-            g_running = false;
-            return "/exit";
-        } else if (c == 0 || c == 224) {
-            _getch(); // consume extended key
-        } else if (c >= 32 && c < 127) {
-            std::lock_guard<std::mutex> lk(g_logMtx);
-            g_inputBuf += (char)c;
-            std::cout << (char)c;
-            std::cout.flush();
+            g_inputActive.store(false);
+            break;
+        }
+
+        // ── Ctrl+C ──
+        if (c == 3) { g_inputActive.store(false); g_running.store(false); return "/exit"; }
+
+        // ── Tab: cycle through completions ──
+        if (c == 9) {
+            if (!acIndices.empty()) {
+                // Accept current ghost suggestion
+                std::string f = COMPLETIONS[acIndices[acTabIdx]].full;
+                buf       = f;
+                cursorPos = (int)buf.size();
+                // Cycle for next Tab press
+                acTabIdx  = (acTabIdx + 1) % (int)acIndices.size();
+                refreshAc();
+                redraw();
+            }
+            continue;
+        }
+
+        // ── Escape: clear input ──
+        if (c == 27) {
+            buf.clear(); cursorPos = 0; acTabIdx = 0;
+            refreshAc(); redraw();
+            continue;
+        }
+
+        // ── Backspace ──
+        if (c == 8) {
+            if (cursorPos > 0) {
+                buf.erase(cursorPos - 1, 1);
+                cursorPos--;
+                acTabIdx = 0;
+                refreshAc(); redraw();
+            }
+            continue;
+        }
+
+        // ── Extended keys ──
+        if (c == 0 || c == 224) {
+            int ext = _getch();
+            switch (ext) {
+                case 72: // UP — history prev
+                    if (histIdx == (int)g_history.size()) histSaved = buf;
+                    if (histIdx > 0) {
+                        histIdx--;
+                        buf = g_history[histIdx];
+                        cursorPos = (int)buf.size();
+                        acTabIdx = 0; refreshAc(); redraw();
+                    }
+                    break;
+                case 80: // DOWN — history next
+                    if (histIdx < (int)g_history.size()) {
+                        histIdx++;
+                        buf = (histIdx == (int)g_history.size()) ? histSaved : g_history[histIdx];
+                        cursorPos = (int)buf.size();
+                        acTabIdx = 0; refreshAc(); redraw();
+                    }
+                    break;
+                case 75: // LEFT
+                    if (cursorPos > 0) { cursorPos--; redraw(); } break;
+                case 77: // RIGHT
+                    if (cursorPos < (int)buf.size()) { cursorPos++; redraw(); }
+                    else if (!acIndices.empty()) {
+                        // Right arrow at end = accept ghost text
+                        buf = COMPLETIONS[acIndices[acTabIdx]].full;
+                        cursorPos = (int)buf.size();
+                        acTabIdx = 0; refreshAc(); redraw();
+                    }
+                    break;
+                case 71: // HOME
+                    cursorPos = 0; redraw(); break;
+                case 79: // END
+                    cursorPos = (int)buf.size(); redraw(); break;
+                case 83: // DELETE
+                    if (cursorPos < (int)buf.size()) {
+                        buf.erase(cursorPos, 1);
+                        acTabIdx = 0; refreshAc(); redraw();
+                    }
+                    break;
+                case 115: // Ctrl+LEFT — word left
+                    while (cursorPos > 0 && buf[cursorPos-1] == ' ') cursorPos--;
+                    while (cursorPos > 0 && buf[cursorPos-1] != ' ') cursorPos--;
+                    redraw(); break;
+                case 116: // Ctrl+RIGHT — word right
+                    while (cursorPos < (int)buf.size() && buf[cursorPos] != ' ') cursorPos++;
+                    while (cursorPos < (int)buf.size() && buf[cursorPos] == ' ')  cursorPos++;
+                    redraw(); break;
+            }
+            continue;
+        }
+
+        // ── Printable char ──
+        if (c >= 32 && c < 127) {
+            buf.insert(buf.begin() + cursorPos, (char)c);
+            cursorPos++;
+            acTabIdx = 0;
+            refreshAc(); redraw();
         }
     }
-    g_inputActive = false;
-    return "/exit";
+
+    g_inputActive.store(false);
+
+    // Add to history
+    std::string t = buf;
+    while (!t.empty() && t.back() == ' ') t.pop_back();
+    if (!t.empty() && (g_history.empty() || g_history.back() != t)) {
+        g_history.push_back(t);
+        if ((int)g_history.size() > MAX_HISTORY)
+            g_history.erase(g_history.begin());
+    }
+    return buf;
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -196,6 +565,13 @@ static void processCommand(const std::string& raw) {
 
     // Support both / and \ as command prefix
     if (!cmd.empty() && cmd[0] == '\\') cmd[0] = '/';
+
+    // ── Conflict / validation check ──
+    std::string validErr = validateCommand(cmd);
+    if (!validErr.empty()) {
+        Log(L_WARN, validErr);
+        return;
+    }
 
     std::string lo = cmd;
     std::transform(lo.begin(), lo.end(), lo.begin(), ::tolower);

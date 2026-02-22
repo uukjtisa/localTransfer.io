@@ -21,6 +21,9 @@ std::mutex  g_savingDirMtx;
 
 std::atomic<bool> g_inputActive{false};
 std::string       g_inputBuf;
+std::atomic<int>  g_inputCursorPos{0};
+std::atomic<int>  g_acShownLines{0};
+std::atomic<int>  g_promptRow{0};
 
 std::vector<FileRecord> g_files;
 

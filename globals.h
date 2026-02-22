@@ -86,6 +86,9 @@ extern std::mutex  g_savingDirMtx;
 // Input-redraw state
 extern std::atomic<bool> g_inputActive;
 extern std::string       g_inputBuf;     // always accessed under g_logMtx
+extern std::atomic<int>  g_inputCursorPos; // cursor offset within g_inputBuf
+extern std::atomic<int>  g_acShownLines;   // # of autocomplete suggestion lines drawn
+extern std::atomic<int>  g_promptRow;      // console row where the prompt lives
 
 // In-memory file list
 extern std::vector<FileRecord> g_files;

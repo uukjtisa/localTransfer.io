@@ -30,9 +30,21 @@ void Log(LogLvl lvl, const std::string& msg) {
     if (wasInput) {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         if (GetConsoleScreenBufferInfo(g_hCon, &csbi)) {
-            COORD lineStart = {0, csbi.dwCursorPosition.Y};
+            // Flush \r before Win32 reads cursor so position is up-to-date.
+            std::cout << '\r';
+            std::cout.flush();
+            GetConsoleScreenBufferInfo(g_hCon, &csbi);
+            SHORT pRow = csbi.dwCursorPosition.Y;
+            g_promptRow.store(pRow);
             DWORD written = 0;
-            FillConsoleOutputCharacterA(g_hCon, ' ', csbi.dwSize.X, lineStart, &written);
+            COORD lineStart = {0, pRow};
+            // Erase only what the prompt line actually contains:
+            //   20 chars prompt + input buf + up to longest completion ghost.
+            // Never use dwSize.X (buffer width) — it causes line-wrap on
+            // terminals narrower than the buffer, creating the blank-line gap.
+            int eraseLen = 20 + (int)g_inputBuf.size() + 64; // 64 = max ghost
+            FillConsoleOutputCharacterA(g_hCon, ' ', eraseLen, lineStart, &written);
+            FillConsoleOutputAttribute(g_hCon, 7, eraseLen, lineStart, &written);
             SetConsoleCursorPosition(g_hCon, lineStart);
         }
     }
@@ -45,10 +57,18 @@ void Log(LogLvl lvl, const std::string& msg) {
     std::cout << msg << "\n";
 
     if (wasInput) {
-        SetConsoleTextAttribute(g_hCon, 11);
-        std::cout << "  localTransfer.io> ";
-        SetConsoleTextAttribute(g_hCon, 7);
-        std::cout << g_inputBuf;
+        CONSOLE_SCREEN_BUFFER_INFO csbi2;
+        if (GetConsoleScreenBufferInfo(g_hCon, &csbi2)) {
+            SHORT newRow = csbi2.dwCursorPosition.Y;
+            g_promptRow.store(newRow);
+            SetConsoleTextAttribute(g_hCon, 11);
+            std::cout << "  localTransfer.io> ";
+            SetConsoleTextAttribute(g_hCon, 7);
+            std::cout << g_inputBuf;
+            int cp = g_inputCursorPos.load();
+            if (cp > (int)g_inputBuf.size()) cp = (int)g_inputBuf.size();
+            SetConsoleCursorPosition(g_hCon, {(SHORT)(20 + cp), newRow});
+        }
         std::cout.flush();
     } else {
         std::cout.flush();
