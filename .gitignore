@@ -45,6 +45,7 @@
 *.bat
 *.exe
 *.config
+*.json
 
 forward/
 database/
