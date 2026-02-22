@@ -43,10 +43,20 @@ struct DbEntry {
     uint64_t    size{0};
 };
 
+struct FfTreeEntry {
+    std::string              fullPath;   // absolute path on disk
+    std::string              name;       // basename
+    bool                     isDir{false};
+    uint64_t                 size{0};    // 0 for dirs (filled async)
+    std::vector<FfTreeEntry> children;
+};
+
 struct ForwardingFolder {
     std::string              id;
     std::string              path;
-    std::vector<std::string> contents;
+    std::vector<std::string> contents;       // flat list of files (top-level only, legacy)
+    bool                     subfoldersEnabled{false};
+    FfTreeEntry              tree;           // recursive tree (when subfoldersEnabled)
 };
 
 // ────────────────────────────────────────────────────────────────

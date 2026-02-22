@@ -85,6 +85,8 @@ static void printHelp() {
     std::cout << "  │ /ff --new <path>  /forwarding_folder │ Add a forwarding folder       │\n";
     std::cout << "  │ /ff --remove <id>                    │ Remove a forwarding folder    │\n";
     std::cout << "  │ /ff --list                           │ List forwarding folders       │\n";
+    std::cout << "  │ /ff --enable-subfolders/-es <id>     │ Enable subfolder scanning     │\n";
+    std::cout << "  │ /ff --disable-subfolders/-ds <id>    │ Disable subfolder scanning    │\n";
     SetConsoleTextAttribute(g_hCon, 3);
     std::cout << "  ├──────────────────────────────────────┼───────────────────────────────┤\n";
     SetConsoleTextAttribute(g_hCon, 7);
@@ -590,6 +592,30 @@ static void processCommand(const std::string& raw) {
                 }
             }
 
+        } else if (rest.rfind("--enable-subfolders", 0) == 0 || rest.rfind("-es", 0) == 0) {
+            int skip = rest.rfind("--enable-subfolders",0)==0 ? 19 : 3;
+            std::string ffId = trim(restRaw.substr(skip));
+            if (ffId.empty()) { Log(L_WARN, "Usage: /ff --enable-subfolders <id>"); }
+            else {
+                bool found = false;
+                { std::lock_guard<std::mutex> lk(g_ffMtx);
+                  for (auto& f : g_ffFolders) if (f.id == ffId) { f.subfoldersEnabled = true; found = true; break; } }
+                if (found) { dbSave(); sseBroadcastDb(); Log(L_OK, "Subfolder scanning ENABLED for [" + ffId + "]"); }
+                else Log(L_ERR, "No forwarding folder with id: " + ffId);
+            }
+
+        } else if (rest.rfind("--disable-subfolders", 0) == 0 || rest.rfind("-ds", 0) == 0) {
+            int skip = rest.rfind("--disable-subfolders",0)==0 ? 20 : 3;
+            std::string ffId = trim(restRaw.substr(skip));
+            if (ffId.empty()) { Log(L_WARN, "Usage: /ff --disable-subfolders <id>"); }
+            else {
+                bool found = false;
+                { std::lock_guard<std::mutex> lk(g_ffMtx);
+                  for (auto& f : g_ffFolders) if (f.id == ffId) { f.subfoldersEnabled = false; f.tree = FfTreeEntry(); found = true; break; } }
+                if (found) { dbSave(); sseBroadcastDb(); Log(L_OK, "Subfolder scanning DISABLED for [" + ffId + "]"); }
+                else Log(L_ERR, "No forwarding folder with id: " + ffId);
+            }
+
         } else if (rest == "--list" || rest == "-l" || rest.empty()) {
             std::lock_guard<std::mutex> lk(g_ffMtx);
             if (g_ffFolders.empty()) {
@@ -610,7 +636,7 @@ static void processCommand(const std::string& raw) {
                     SetConsoleTextAttribute(g_hCon, 15);
                     std::cout << ff.path;
                     SetConsoleTextAttribute(g_hCon, 8);
-                    std::cout << "  (" << ff.contents.size() << " files)\n";
+                    std::cout << "  (" << ff.contents.size() << " files, subfolders:" << (ff.subfoldersEnabled?"on":"off") << ")\n";
                     for (auto& fp : ff.contents) {
                         size_t sl = fp.rfind('\\');
                         std::string fn = (sl!=std::string::npos) ? fp.substr(sl+1) : fp;
@@ -621,7 +647,7 @@ static void processCommand(const std::string& raw) {
                 std::cout << "\n";
             }
         } else {
-            Log(L_INFO, "Forwarding folder commands: --new/-n <path>  --remove/-rm <id>  --list/-l");
+            Log(L_INFO, "Forwarding folder commands: --new/-n <path>  --remove/-rm <id>  --list/-l  --enable-subfolders/-es <id>  --disable-subfolders/-ds <id>");
         }
 
     } else if (lo.rfind("/pastebin", 0) == 0 || (lo.rfind("/pb", 0) == 0 && lo.size() <= 3)) {

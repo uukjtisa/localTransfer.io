@@ -128,7 +128,7 @@ main{flex:1;min-width:0;padding:28px 24px 80px;}
 .db-item-name{font-size:.82rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
 .db-item-meta{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--dim);margin-bottom:8px;}
 .db-item-actions{display:flex;gap:5px;}
-.db-btn{font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;text-decoration:none;display:inline-block;}
+.db-btn{font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:3px 9px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;text-decoration:none;display:inline-block;background:transparent;}
 .db-btn-dl{border-color:var(--green-dim);color:var(--green2);}
 .db-btn-dl:hover{border-color:var(--green);color:var(--green);background:rgba(63,185,80,.08);}
 .db-btn-del{border-color:#3a2030;color:var(--err);}
@@ -139,12 +139,81 @@ main{flex:1;min-width:0;padding:28px 24px 80px;}
 .ff-section{margin-top:16px;}
 .ff-section-header{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 .ff-folder{margin-bottom:10px;}
-.ff-folder-path{font-size:.7rem;color:var(--txt2);font-family:'JetBrains Mono',monospace;margin-bottom:6px;padding:5px 8px;background:var(--surface2);border-radius:4px;border-left:2px solid var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* FF TREE */
 .ff-file{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--dim2);font-size:.72rem;}
 .ff-file:last-child{border-bottom:none;}
-.ff-file-name{color:var(--txt2);}
-.ff-dl-btn{font-family:'JetBrains Mono',monospace;font-size:.55rem;padding:2px 7px;border-radius:3px;border:1px solid var(--blue);color:var(--blue);text-decoration:none;transition:all .15s;}
+.ff-file-name{color:var(--txt2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ff-file-actions{display:flex;gap:4px;flex-shrink:0;}
+.ff-dl-btn{font-family:'JetBrains Mono',monospace;font-size:.55rem;padding:2px 7px;border-radius:3px;border:1px solid var(--blue);color:var(--blue);text-decoration:none;transition:all .15s;cursor:pointer;background:none;}
 .ff-dl-btn:hover{background:rgba(88,166,255,.12);}
+.ff-view-btn{font-family:'JetBrains Mono',monospace;font-size:.55rem;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--txt2);cursor:pointer;background:none;transition:all .15s;}
+.ff-view-btn:hover{border-color:var(--green-dim);color:var(--green);}
+.ff-size{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--dim);margin-right:6px;white-space:nowrap;}
+
+/* FF tree indentation */
+.ff-tree-dir{margin-bottom:2px;}
+.ff-tree-dir-hdr{display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;border-radius:4px;font-size:.72rem;color:var(--blue);background:rgba(88,166,255,.05);border-left:2px solid var(--blue);}
+.ff-tree-dir-hdr:hover{background:rgba(88,166,255,.12);}
+.ff-tree-dir-hdr .tree-toggle{font-size:.65rem;transition:transform .15s;flex-shrink:0;}
+.ff-tree-dir-hdr.collapsed .tree-toggle{transform:rotate(-90deg);}
+.ff-tree-dir-hdr .dir-dl-btn{font-family:'JetBrains Mono',monospace;font-size:.52rem;padding:2px 6px;border-radius:3px;border:1px solid var(--blue);color:var(--blue);background:none;cursor:pointer;margin-left:auto;transition:all .15s;}
+.ff-tree-dir-hdr .dir-dl-btn:hover{background:rgba(88,166,255,.15);}
+.ff-tree-children{margin-left:14px;border-left:1px solid var(--border);padding-left:4px;}
+.ff-tree-dir.collapsed > .ff-tree-children{display:none;}
+
+/* Thumbnail in list */
+.file-thumb{width:36px;height:36px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);}
+.thumb-placeholder{width:36px;height:36px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:1.2rem;flex-shrink:0;border:1px solid var(--border);}
+
+/* DB TOOLBAR (search/filter/sort/view) */
+.db-toolbar{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.db-search-row{display:flex;gap:6px;}
+.db-search{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:5px 9px;outline:none;transition:border-color .2s;}
+.db-search:focus{border-color:var(--green-dim);}
+.db-controls-row{display:flex;gap:5px;flex-wrap:wrap;}
+.db-ctl{font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--txt2);background:var(--bg);cursor:pointer;transition:all .15s;}
+.db-ctl:hover,.db-ctl.active{border-color:var(--green-dim);color:var(--green);}
+.db-ctl select{background:transparent;border:none;color:inherit;font:inherit;cursor:pointer;outline:none;}
+
+/* COMPACT mode */
+.db-item.compact{padding:5px 10px;margin-bottom:3px;}
+.db-item.compact .db-item-meta{margin-bottom:4px;}
+.db-item.compact .db-item-name{font-size:.75rem;}
+
+/* DB item view button */
+.db-btn-view{border-color:#1f3a5c;color:#4a8abf;}
+.db-btn-view:hover{border-color:var(--blue);color:var(--blue);background:rgba(88,166,255,.08);}
+
+/* ── PREVIEW MODAL ── */
+.preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.preview-overlay.hidden{display:none;}
+.preview-modal{background:var(--surface);border:1px solid var(--border2);border-radius:10px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;min-width:320px;}
+.preview-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.preview-hdr-name{font-size:.8rem;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw;}
+.preview-close{background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;padding:2px 8px;border-radius:4px;transition:all .15s;}
+.preview-close:hover{color:var(--err);background:rgba(248,81,73,.1);}
+.preview-body{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:12px;min-height:200px;}
+.preview-img{max-width:100%;max-height:70vh;border-radius:6px;object-fit:contain;}
+.preview-video{max-width:100%;max-height:70vh;border-radius:6px;}
+.preview-audio-wrap{padding:20px;text-align:center;}
+.preview-audio{width:100%;max-width:400px;}
+.preview-text{white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--txt);background:var(--bg);padding:14px;border-radius:6px;overflow:auto;max-height:65vh;width:100%;line-height:1.6;}
+.preview-archive{width:100%;max-height:65vh;overflow:auto;}
+.preview-archive-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-bottom:1px solid var(--dim2);font-size:.72rem;font-family:'JetBrains Mono',monospace;}
+.preview-archive-item:hover{background:var(--surface2);}
+.preview-footer{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+.preview-foot-btn{font-family:'JetBrains Mono',monospace;font-size:.62rem;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid var(--border2);color:var(--txt2);background:transparent;transition:all .15s;}
+.preview-foot-btn:hover{border-color:var(--green-dim);color:var(--green);}
+.preview-foot-btn.active{border-color:var(--green);color:var(--green);}
+.preview-unsupported{text-align:center;padding:30px;color:var(--txt2);}
+.preview-unsupported p{font-size:.8rem;margin-bottom:12px;}
+
+/* Archive password prompt */
+.arch-pw-row{display:flex;gap:6px;margin-bottom:10px;}
+.arch-pw-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:.72rem;padding:5px 9px;outline:none;}
+.arch-pw-input:focus{border-color:var(--blue);}
+
 
 /* PASTEBIN */
 .paste-area{flex:1;display:flex;flex-direction:column;gap:8px;}
@@ -360,6 +429,36 @@ h2{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim
       <h3>Database</h3>
       <button class="sb-close-btn" onclick="closePanel()">✕ Close</button>
     </div>
+    <!-- Toolbar -->
+    <div class="db-toolbar">
+      <div class="db-search-row">
+        <input class="db-search" id="dbSearch" type="text" placeholder="🔍 Search files…" oninput="applyDbFilters()">
+      </div>
+      <div class="db-controls-row">
+        <button class="db-ctl" id="ctlCompact" onclick="toggleCompact()" title="Toggle compact view">⊟ Compact</button>
+        <button class="db-ctl" onclick="applyDbFilters()">
+          <select id="dbSortSel" onchange="applyDbFilters()" style="background:transparent;border:none;color:inherit;font:inherit;cursor:pointer;outline:none;">
+            <option value="time_desc">↓ Newest</option>
+            <option value="time_asc">↑ Oldest</option>
+            <option value="size_desc">↓ Largest</option>
+            <option value="size_asc">↑ Smallest</option>
+            <option value="name_asc">A→Z</option>
+            <option value="name_desc">Z→A</option>
+          </select>
+        </button>
+        <button class="db-ctl" onclick="applyDbFilters()">
+          <select id="dbTypeSel" onchange="applyDbFilters()" style="background:transparent;border:none;color:inherit;font:inherit;cursor:pointer;outline:none;">
+            <option value="">All Types</option>
+            <option value="image">🖼 Images</option>
+            <option value="video">🎬 Video</option>
+            <option value="audio">🎵 Audio</option>
+            <option value="text">📝 Text</option>
+            <option value="archive">🗜 Archives</option>
+            <option value="other">📁 Other</option>
+          </select>
+        </button>
+      </div>
+    </div>
     <div id="dbItems"><div class="sb-empty">Loading…</div></div>
     <div class="ff-section" id="ffSection" style="display:none">
       <div class="ff-section-header">⟳ Forwarding Folders</div>
@@ -384,6 +483,26 @@ h2{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim
 </aside>
 </div>
 
+<!-- PREVIEW MODAL -->
+<div class="preview-overlay hidden" id="previewOverlay" onclick="closePreview(event)">
+  <div class="preview-modal" onclick="event.stopPropagation()">
+    <div class="preview-hdr">
+      <span class="preview-hdr-name" id="previewTitle">File Preview</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a id="previewDlBtn" class="preview-foot-btn" style="text-decoration:none" href="#" download>↓ Download</a>
+        <button class="preview-close" onclick="closePreview()">✕</button>
+      </div>
+    </div>
+    <div class="preview-body" id="previewBody">
+      <div class="preview-unsupported"><p>Loading…</p></div>
+    </div>
+    <div class="preview-footer" id="previewFooter">
+      <span id="previewInfo" style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--dim);flex:1"></span>
+      <button class="preview-foot-btn" id="btnViewAsText" onclick="previewAsText()" title="Force text view">📄 View as Text</button>
+      <button class="preview-foot-btn" id="btnShowFull" onclick="previewShowFull()" style="display:none">Show Full Text</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -629,58 +748,222 @@ function decodeDisplayName(name) {
     .replace(/：/g, ':');
 }
 
+// ── FILE TYPE CATEGORIZATION ──
+const EXT_IMAGE   = new Set(['jpg','jpeg','png','gif','webp','bmp','ico','tiff','tif','svg','avif','heic','heif','raw','cr2','nef','arw','dng']);
+const EXT_VIDEO   = new Set(['mp4','mkv','mov','avi','wmv','flv','webm','m4v','mpeg','mpg','3gp','ogv','ts','vob','rm','rmvb','m2ts','mts']);
+const EXT_AUDIO   = new Set(['mp3','flac','wav','aac','ogg','m4a','wma','opus','aiff','aif','ape','mka','mid','midi','ra','amr','ac3','dts']);
+const EXT_TEXT    = new Set(['txt','md','markdown','rst','csv','tsv','log','ini','cfg','conf','yaml','yml','json','xml','html','htm','xhtml',
+  'css','js','jsx','ts','tsx','py','rb','php','java','c','cpp','cc','cxx','h','hpp','cs','go','rs','swift','kt','kts','sh','bash','zsh',
+  'fish','ps1','bat','cmd','lua','r','pl','pm','sql','graphql','gql','toml','env','gitignore','dockerfile','makefile','cmake','gradle',
+  'vue','svelte','dart','scala','clj','cljs','ex','exs','erl','hrl','hs','elm','ml','mli','v','vhd','asm','s','nasm','tex','bib','srt',
+  'vtt','sub','ass','nfo','reg','inf','htaccess','nginx','apacheconf']);
+const EXT_ARCHIVE = new Set(['zip','rar','7z','tar','gz','bz2','xz','lzma','cab','iso','dmg','pkg','deb','rpm','msi','jar','war','ear',
+  'apk','ipa','tar.gz','tgz','tar.bz2','tar.xz','tar.zst','zst','lz4','lz','zlib','z','gz','br']);
+
+// Browser-native playable types
+const EXT_IMG_NATIVE   = new Set(['jpg','jpeg','png','gif','webp','bmp','svg','avif']);
+const EXT_VIDEO_NATIVE = new Set(['mp4','webm','ogv','mov']);
+const EXT_AUDIO_NATIVE = new Set(['mp3','wav','ogg','flac','m4a','aac','opus','aiff','aif']);
+
+function getExt(name){ return (name||'').split('.').pop().toLowerCase(); }
+function fileCategory(name){
+  const e=getExt(name);
+  if(EXT_IMAGE.has(e))   return 'image';
+  if(EXT_VIDEO.has(e))   return 'video';
+  if(EXT_AUDIO.has(e))   return 'audio';
+  if(EXT_TEXT.has(e))    return 'text';
+  if(EXT_ARCHIVE.has(e)) return 'archive';
+  return 'other';
+}
+function fileIcon(name){
+  const cat=fileCategory(name);
+  const e=getExt(name);
+  if(cat==='image')   return '🖼';
+  if(cat==='video')   return '🎬';
+  if(cat==='audio')   return '🎵';
+  if(cat==='archive') return '🗜';
+  if(cat==='text'){
+    if(['py','rb','php','js','jsx','ts','tsx','java','c','cpp','go','rs','swift','kt','sh','bash','ps1','bat'].includes(e)) return '💻';
+    if(['json','xml','yaml','yml','toml'].includes(e)) return '⚙';
+    if(['sql'].includes(e)) return '🗃';
+    return '📝';
+  }
+  return '📁';
+}
+
+// ── DB STATE ──
+let _dbFiles=[], _dbFFs=[], _dbCompact=false;
+
 // ── DATABASE ──
 function loadDatabase(){
   fetch('/api/database').then(r=>r.json()).then(d=>{
     renderDatabase(d.files||[], d.forwarding_folders||[]);
   }).catch(()=>{ document.getElementById('dbItems').innerHTML='<div class="sb-empty">Error loading</div>'; });
 }
+
 function renderDatabase(files, ffs){
-  const el = document.getElementById('dbItems');
-  if(!files.length){ el.innerHTML='<div class="sb-empty">No files in database</div>'; }
-  else {
-    el.innerHTML = files.map(f=>{
-      // name in DB is encoded (matches disk); decode for display and download attr
-      const displayName = decodeDisplayName(f.name);
-      return `
-      <div class="db-item" id="dbItem_${f.id}">
-        <div class="db-item-name">${escHtml(displayName)}</div>
-        <div class="db-item-meta">${fmtBytes(f.size)} · ${escHtml(f.timestamp)} · from ${escHtml(f.from)}</div>
-        <div class="db-item-actions">
-          <a class="db-btn db-btn-dl" href="/download?id=${encodeURIComponent(f.id)}" download="${escHtml(displayName)}">↓ Download</a>
-          <button class="db-btn db-btn-del" onclick="dbDelete('${f.id}')">✕ Delete</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
+  _dbFiles=files; _dbFFs=ffs;
+  applyDbFilters();
 
   // Forwarding folders
   const ffSec = document.getElementById('ffSection');
   const ffEl  = document.getElementById('ffItems');
-  if (ffs && ffs.length > 0) {
-    ffSec.style.display = 'block';
-    ffEl.innerHTML = ffs.map(ff => {
-      const ffItems = (ff.contents||[]).length === 0
-        ? '<div style="font-size:.65rem;color:var(--dim);padding:4px 8px">Empty folder</div>'
-        : (ff.contents||[]).map(c => {
-            // c.name is the encoded disk basename; decode for display and download attr
-            const displayName = decodeDisplayName(c.name||c);
-            return `
-          <div class="ff-file">
-            <span class="ff-file-name">${escHtml(displayName)}</span>
-            <a class="ff-dl-btn" href="/download_ff?path=${encodeURIComponent(c.path||c)}" download="${escHtml(displayName)}">↓</a>
-          </div>`;
-          }).join('');
-      return `
-      <div class="ff-folder">
-        <div class="ff-folder-path" title="${escHtml(ff.path)}">${escHtml(ff.path)}</div>
-        ${ffItems}
-      </div>`;
-    }).join('');
+  if(ffs && ffs.length > 0){
+    ffSec.style.display='block';
+    ffEl.innerHTML='';
+    ffs.forEach(ff=>{
+      const wrap=document.createElement('div');
+      wrap.className='ff-folder';
+      wrap.style.marginBottom='12px';
+      // Header row
+      const hdr=document.createElement('div');
+      hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:var(--surface2);border-radius:4px;border-left:2px solid var(--blue);margin-bottom:4px;';
+      hdr.innerHTML=`<span style="font-size:.7rem;color:var(--txt2);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1" title="${escHtml(ff.path)}">${escHtml(ff.path)}</span>`;
+      if(ff.subfolders_enabled){
+        hdr.innerHTML+=`<a class="ff-dl-btn" style="margin-left:8px" href="/download_ff_zip?id=${encodeURIComponent(ff.id)}" download>⬇ ZIP</a>`;
+      }
+      wrap.appendChild(hdr);
+
+      if(ff.subfolders_enabled && ff.tree){
+        // Render recursive tree
+        const treeEl=renderFfTree(ff.tree, ff.id, 0);
+        wrap.appendChild(treeEl);
+      } else {
+        // Flat file list
+        const listEl=document.createElement('div');
+        const items=ff.contents||[];
+        if(!items.length){
+          listEl.innerHTML='<div style="font-size:.65rem;color:var(--dim);padding:4px 8px">Empty folder</div>';
+        } else {
+          items.forEach(c=>{
+            const displayName=decodeDisplayName(c.name||c);
+            const ext=getExt(displayName);
+            const cat=fileCategory(displayName);
+            const fi=document.createElement('div');
+            fi.className='ff-file';
+            fi.innerHTML=`
+              <span class="ff-file-name" title="${escHtml(displayName)}">${fileIcon(displayName)} ${escHtml(displayName)}</span>
+              <div class="ff-file-actions">
+                <button class="ff-view-btn" onclick='openPreview(${JSON.stringify({name:displayName,path:c.path||c,src:"ff"})})'>👁 View</button>
+                <a class="ff-dl-btn" href="/download_ff?path=${encodeURIComponent(c.path||c)}" download="${escHtml(displayName)}">↓</a>
+              </div>`;
+            listEl.appendChild(fi);
+          });
+        }
+        wrap.appendChild(listEl);
+      }
+      ffEl.appendChild(wrap);
+    });
   } else {
-    ffSec.style.display = 'none';
+    ffSec.style.display='none';
   }
 }
+
+function renderFfTree(node, ffId, depth){
+  const el=document.createElement('div');
+  if(node.isDir){
+    el.className='ff-tree-dir';
+    const hdr=document.createElement('div');
+    hdr.className='ff-tree-dir-hdr';
+    const isRoot=(depth===0);
+    if(!isRoot){
+      hdr.innerHTML=`<span class="tree-toggle">▾</span><span>📁 ${escHtml(node.name)}</span>`;
+      const dlBtn=document.createElement('button');
+      dlBtn.className='dir-dl-btn';
+      dlBtn.textContent='⬇ ZIP';
+      dlBtn.onclick=()=>{ window.location='/download_ff_zip?path='+encodeURIComponent(node.path); };
+      hdr.appendChild(dlBtn);
+      hdr.onclick=(e)=>{
+        if(e.target===dlBtn||dlBtn.contains(e.target)) return;
+        const dir=el;
+        dir.classList.toggle('collapsed');
+        hdr.classList.toggle('collapsed');
+      };
+    }
+    el.appendChild(hdr);
+    if(!isRoot){
+      const kids=document.createElement('div');
+      kids.className='ff-tree-children';
+      (node.children||[]).forEach(c=>kids.appendChild(renderFfTree(c,ffId,depth+1)));
+      el.appendChild(kids);
+    } else {
+      // Root node: render children directly (header already shown by parent)
+      const kids=document.createElement('div');
+      kids.style.marginLeft='0';
+      (node.children||[]).forEach(c=>kids.appendChild(renderFfTree(c,ffId,depth+1)));
+      el.appendChild(kids);
+    }
+  } else {
+    el.className='ff-file';
+    const displayName=decodeDisplayName(node.name);
+    el.innerHTML=`
+      <span class="ff-file-name" title="${escHtml(displayName)}">${fileIcon(displayName)} ${escHtml(displayName)}</span>
+      <div class="ff-file-actions">
+        <span class="ff-size">${fmtBytes(node.size)}</span>
+        <button class="ff-view-btn" onclick='openPreview(${JSON.stringify({name:displayName,path:node.path,src:"ff"})})'>👁</button>
+        <a class="ff-dl-btn" href="/download_ff?path=${encodeURIComponent(node.path)}" download="${escHtml(displayName)}">↓</a>
+      </div>`;
+  }
+  return el;
+}
+
+// ── APPLY FILTERS/SORT TO DB ITEMS ──
+function applyDbFilters(){
+  const q=(document.getElementById('dbSearch')||{value:''}).value.toLowerCase();
+  const sort=(document.getElementById('dbSortSel')||{value:'time_desc'}).value;
+  const type=(document.getElementById('dbTypeSel')||{value:''}).value;
+  let files=[..._dbFiles];
+
+  // Filter by search
+  if(q) files=files.filter(f=>decodeDisplayName(f.name).toLowerCase().includes(q));
+  // Filter by type
+  if(type) files=files.filter(f=>fileCategory(decodeDisplayName(f.name))===type);
+  // Sort
+  files.sort((a,b)=>{
+    const na=decodeDisplayName(a.name), nb=decodeDisplayName(b.name);
+    if(sort==='time_desc') return 0; // already newest-first from server
+    if(sort==='time_asc')  return 1;  // reverse (crude but workable)
+    if(sort==='size_desc') return b.size-a.size;
+    if(sort==='size_asc')  return a.size-b.size;
+    if(sort==='name_asc')  return na.localeCompare(nb);
+    if(sort==='name_desc') return nb.localeCompare(na);
+    return 0;
+  });
+  if(sort==='time_asc') files.reverse();
+
+  const el=document.getElementById('dbItems');
+  if(!files.length){
+    el.innerHTML='<div class="sb-empty">'+(q||type?'No matches':'No files in database')+'</div>';
+    return;
+  }
+  el.innerHTML='';
+  files.forEach(f=>{
+    const displayName=decodeDisplayName(f.name);
+    const cat=fileCategory(displayName);
+    const isImg=EXT_IMG_NATIVE.has(getExt(displayName));
+    const item=document.createElement('div');
+    item.className='db-item'+(_dbCompact?' compact':'');
+    item.id='dbItem_'+f.id;
+    item.innerHTML=`
+      ${isImg?`<img class="file-thumb" src="/preview_inline?id=${encodeURIComponent(f.id)}" onerror="this.style.display='none'" loading="lazy">`:
+               `<div class="thumb-placeholder">${fileIcon(displayName)}</div>`}
+      <div class="db-item-name">${escHtml(displayName)}</div>
+      <div class="db-item-meta">${fmtBytes(f.size)} · ${escHtml(f.timestamp)} · from ${escHtml(f.from)}</div>
+      <div class="db-item-actions">
+        <button class="db-btn db-btn-view" onclick='openPreview({name:${JSON.stringify(displayName)},id:${JSON.stringify(f.id)},src:"db"})'>👁 View</button>
+        <a class="db-btn db-btn-dl" href="/download?id=${encodeURIComponent(f.id)}" download="${escHtml(displayName)}">↓ DL</a>
+        <button class="db-btn db-btn-del" onclick="dbDelete('${f.id}')">✕</button>
+      </div>`;
+    el.appendChild(item);
+  });
+}
+function toggleCompact(){
+  _dbCompact=!_dbCompact;
+  const btn=document.getElementById('ctlCompact');
+  if(btn) btn.classList.toggle('active',_dbCompact);
+  applyDbFilters();
+}
+
 function dbDelete(id){
   if(!confirm('Delete this file from the host?')) return;
   fetch('/api/database/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,delete_file:true})})
@@ -689,6 +972,153 @@ function dbDelete(id){
     else showToast('Delete failed: '+(d.error||'unknown'),true);
   }).catch(()=>showToast('Network error',true));
 }
+
+// ── PREVIEW MODAL ──
+let _previewCurrent=null, _previewFullText=false;
+
+function openPreview(info){
+  _previewCurrent=info;
+  _previewFullText=false;
+  const overlay=document.getElementById('previewOverlay');
+  overlay.classList.remove('hidden');
+  document.getElementById('previewTitle').textContent=info.name||'Preview';
+  document.getElementById('previewBody').innerHTML='<div style="color:var(--dim);font-family:\'JetBrains Mono\',monospace;font-size:.8rem">Loading…</div>';
+  document.getElementById('btnShowFull').style.display='none';
+  document.getElementById('previewInfo').textContent='';
+
+  const ext=getExt(info.name||'');
+  const cat=fileCategory(info.name||'');
+  let url='';
+  if(info.src==='db')   url='/preview_inline?id='+encodeURIComponent(info.id);
+  else                  url='/preview_inline_ff?path='+encodeURIComponent(info.path);
+  const dlUrl=(info.src==='db')?'/download?id='+encodeURIComponent(info.id):'/download_ff?path='+encodeURIComponent(info.path);
+  const dlBtn=document.getElementById('previewDlBtn');
+  dlBtn.href=dlUrl; dlBtn.download=info.name||'file';
+
+  if(cat==='image'){
+    if(EXT_IMG_NATIVE.has(ext)){
+      document.getElementById('previewBody').innerHTML=`<img class="preview-img" src="${url}" alt="${escHtml(info.name)}">`;
+      document.getElementById('previewInfo').textContent='Image preview';
+    } else {
+      _showUnsupported(info.name, url, cat);
+    }
+  } else if(cat==='video'){
+    if(EXT_VIDEO_NATIVE.has(ext)){
+      document.getElementById('previewBody').innerHTML=`<video class="preview-video" controls autoplay><source src="${url}"><p style="color:var(--dim)">Cannot play this video.</p></video>`;
+    } else {
+      _showUnsupported(info.name, url, cat);
+    }
+  } else if(cat==='audio'){
+    if(EXT_AUDIO_NATIVE.has(ext)){
+      document.getElementById('previewBody').innerHTML=`<div class="preview-audio-wrap"><div style="font-size:3rem;margin-bottom:16px">🎵</div><p style="color:var(--txt2);margin-bottom:12px">${escHtml(info.name)}</p><audio class="preview-audio" controls autoplay><source src="${url}"></audio></div>`;
+    } else {
+      _showUnsupported(info.name, url, cat);
+    }
+  } else if(cat==='text'){
+    _fetchTextPreview(url, info.name);
+  } else if(cat==='archive'){
+    _fetchArchivePreview(url, info, ext);
+  } else {
+    _showUnsupported(info.name, url, cat);
+  }
+}
+
+function _showUnsupported(name, url, cat){
+  document.getElementById('previewBody').innerHTML=`
+    <div class="preview-unsupported">
+      <div style="font-size:3rem;margin-bottom:12px">${fileIcon(name)}</div>
+      <p>${escHtml(name)}</p>
+      <p style="font-size:.72rem;color:var(--dim);margin-top:4px">This file type cannot be previewed directly in the browser.</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap">
+        <button class="preview-foot-btn active" onclick="previewAsText()">📄 View as Text</button>
+      </div>
+    </div>`;
+}
+
+function _fetchTextPreview(url, name){
+  fetch(url).then(r=>r.text()).then(txt=>{
+    const TRUNC=8000;
+    const truncated=txt.length>TRUNC;
+    const display=truncated?txt.slice(0,TRUNC):txt;
+    document.getElementById('previewBody').innerHTML=`<pre class="preview-text">${escHtml(display)}</pre>`;
+    document.getElementById('previewInfo').textContent=txt.length+' chars';
+    const sfBtn=document.getElementById('btnShowFull');
+    if(truncated){ sfBtn.style.display='inline-block'; sfBtn.dataset.full=txt; }
+    else sfBtn.style.display='none';
+  }).catch(()=>{ document.getElementById('previewBody').innerHTML='<div class="preview-unsupported"><p style="color:var(--err)">Failed to load text</p></div>'; });
+}
+
+function _fetchArchivePreview(url, info, ext){
+  if(ext==='zip'){
+    fetch('/api/archive_browse?src='+info.src+'&'+(info.src==='db'?'id='+encodeURIComponent(info.id):'path='+encodeURIComponent(info.path)))
+    .then(r=>r.json()).then(d=>{
+      if(d.password_protected){
+        document.getElementById('previewBody').innerHTML=`
+          <div class="preview-unsupported">
+            <p>🔒 This archive is password protected.</p>
+            <div class="arch-pw-row" style="margin-top:12px">
+              <input class="arch-pw-input" id="archPwInput" type="password" placeholder="Enter password…">
+              <button class="preview-foot-btn active" onclick="_archiveWithPw('${escHtml(info.src)}','${escHtml(info.id||'')}','${escHtml(info.path||'')}')">Unlock</button>
+              <button class="preview-foot-btn" onclick="closePreview()">Cancel</button>
+            </div>
+          </div>`;
+      } else if(d.entries){
+        _renderArchiveList(d.entries);
+      } else {
+        document.getElementById('previewBody').innerHTML='<div class="preview-unsupported"><p style="color:var(--err)">Failed to read archive.</p></div>';
+      }
+    }).catch(()=>{ _showUnsupported(info.name, url, 'archive'); });
+  } else {
+    _showUnsupported(info.name, url, 'archive');
+  }
+}
+
+function _archiveWithPw(src, id, path){
+  const pw=document.getElementById('archPwInput').value;
+  const qs=src==='db'?'id='+encodeURIComponent(id):'path='+encodeURIComponent(path);
+  fetch('/api/archive_browse?src='+src+'&'+qs+'&pw='+encodeURIComponent(pw))
+  .then(r=>r.json()).then(d=>{
+    if(d.entries) _renderArchiveList(d.entries);
+    else document.getElementById('previewBody').innerHTML='<div class="preview-unsupported"><p style="color:var(--err)">Wrong password or error.</p></div>';
+  });
+}
+
+function _renderArchiveList(entries){
+  let html='<div class="preview-archive">';
+  entries.forEach(e=>{
+    html+=`<div class="preview-archive-item">${e.isDir?'📁':'📄'} <span style="flex:1">${escHtml(e.name)}</span><span style="color:var(--dim)">${e.isDir?'':fmtBytes(e.size)}</span></div>`;
+  });
+  html+='</div>';
+  document.getElementById('previewBody').innerHTML=html;
+  document.getElementById('previewInfo').textContent=entries.length+' entries';
+}
+
+function previewAsText(){
+  if(!_previewCurrent) return;
+  const info=_previewCurrent;
+  let url='';
+  if(info.src==='db')   url='/preview_inline?id='+encodeURIComponent(info.id);
+  else                  url='/preview_inline_ff?path='+encodeURIComponent(info.path);
+  _fetchTextPreview(url, info.name);
+}
+
+function previewShowFull(){
+  const sfBtn=document.getElementById('btnShowFull');
+  const full=sfBtn.dataset.full||'';
+  document.getElementById('previewBody').innerHTML=`<pre class="preview-text">${escHtml(full)}</pre>`;
+  sfBtn.style.display='none';
+}
+
+function closePreview(e){
+  if(e && e.target!==document.getElementById('previewOverlay')) return;
+  document.getElementById('previewOverlay').classList.add('hidden');
+  // Stop any playing media
+  document.querySelectorAll('#previewBody audio,#previewBody video').forEach(m=>{m.pause();m.src='';});
+  _previewCurrent=null;
+}
+// Keyboard: Escape to close preview
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.getElementById('previewOverlay').classList.add('hidden'); });
+
 
 // ── PASTEBIN ──
 let pasteLocalEdit = false, pasteEditTimer = null, pasteSyncTimer = null;
@@ -794,11 +1224,7 @@ function fmtBytes(b){
   return (b/1073741824).toFixed(2)+' GB';
 }
 function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fileIcon(name){
-  const e=(name||'').split('.').pop().toLowerCase();
-  const m={png:'🖼',jpg:'🖼',jpeg:'🖼',gif:'🖼',webp:'🖼',mp4:'🎬',mov:'🎬',avi:'🎬',mkv:'🎬',mp3:'🎵',wav:'🎵',flac:'🎵',pdf:'📄',doc:'📝',docx:'📝',txt:'📝',md:'📝',zip:'🗜',rar:'🗜','7z':'🗜',tar:'🗜',xls:'📊',xlsx:'📊',csv:'📊',exe:'⚙',apk:'📱',psd:'🎨',svg:'🎨',js:'💻',ts:'💻',py:'💻',cpp:'💻',rs:'💻',go:'💻'};
-  return m[e]||'📁';
-}
+
 </script>
 </body>
 </html>
@@ -1118,8 +1544,260 @@ done:
 }
 
 // ────────────────────────────────────────────────────────────────
-//  MULTIPART PARSER
+//  MINIMAL ZIP WRITER (store-mode, no compression)
 // ────────────────────────────────────────────────────────────────
+struct ZipBuilder {
+    std::vector<uint8_t> data;
+    struct Entry { std::string name; uint32_t crc; uint32_t size; uint32_t offset; };
+    std::vector<Entry> entries;
+
+    static uint32_t crc32(const uint8_t* buf, size_t len) {
+        uint32_t crc = 0xFFFFFFFF;
+        for (size_t i = 0; i < len; i++) {
+            crc ^= buf[i];
+            for (int j = 0; j < 8; j++) crc = (crc >> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+        }
+        return ~crc;
+    }
+    void writeLE16(uint16_t v){ data.push_back(v&0xFF); data.push_back((v>>8)&0xFF); }
+    void writeLE32(uint32_t v){ data.push_back(v&0xFF); data.push_back((v>>8)&0xFF); data.push_back((v>>16)&0xFF); data.push_back((v>>24)&0xFF); }
+    void writeBytes(const void* p, size_t n){ auto* b=(const uint8_t*)p; data.insert(data.end(),b,b+n); }
+
+    bool addFile(const std::string& entryName, const std::string& diskPath) {
+        HANDLE hf = CreateFileW(toWide(diskPath).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (hf == INVALID_HANDLE_VALUE) return false;
+        LARGE_INTEGER sz; GetFileSizeEx(hf, &sz);
+        if (sz.QuadPart > 512LL*1024*1024) { CloseHandle(hf); return false; } // skip >512MB files
+        std::vector<uint8_t> buf((size_t)sz.QuadPart);
+        DWORD r = 0; ReadFile(hf, buf.data(), (DWORD)buf.size(), &r, nullptr);
+        CloseHandle(hf);
+        if (r != (DWORD)sz.QuadPart) return false;
+
+        uint32_t crc = crc32(buf.data(), buf.size());
+        uint32_t offset = (uint32_t)data.size();
+
+        // Local file header
+        writeLE32(0x04034b50); writeLE16(20); writeLE16(0); writeLE16(0); // sig, ver, flags, method(store)
+        writeLE16(0); writeLE16(0); // mod time/date
+        writeLE32(crc); writeLE32((uint32_t)buf.size()); writeLE32((uint32_t)buf.size());
+        writeLE16((uint16_t)entryName.size()); writeLE16(0); // fname len, extra len
+        writeBytes(entryName.data(), entryName.size());
+        writeBytes(buf.data(), buf.size());
+
+        entries.push_back({entryName, crc, (uint32_t)buf.size(), offset});
+        return true;
+    }
+
+    std::vector<uint8_t> finish() {
+        uint32_t cdOffset = (uint32_t)data.size();
+        for (auto& e : entries) {
+            writeLE32(0x02014b50); writeLE16(20); writeLE16(20); writeLE16(0); writeLE16(0); writeLE16(0);
+            writeLE16(0); writeLE16(0); // time/date
+            writeLE32(e.crc); writeLE32(e.size); writeLE32(e.size);
+            writeLE16((uint16_t)e.name.size()); writeLE16(0); writeLE16(0); writeLE16(0); writeLE16(0);
+            writeLE32(0); writeLE32(e.offset);
+            writeBytes(e.name.data(), e.name.size());
+        }
+        uint32_t cdSize = (uint32_t)data.size() - cdOffset;
+        // EOCD
+        writeLE32(0x06054b50); writeLE16(0); writeLE16(0);
+        writeLE16((uint16_t)entries.size()); writeLE16((uint16_t)entries.size());
+        writeLE32(cdSize); writeLE32(cdOffset); writeLE16(0);
+        return data;
+    }
+};
+
+// Collect all files in a directory tree into a ZipBuilder (relative paths)
+static void zipAddDir(ZipBuilder& zb, const std::string& base, const std::string& rel, int depth) {
+    if (depth > 20) return; // safety
+    std::wstring wpattern = toWide(base + "\\" + rel + "\\*");
+    WIN32_FIND_DATAW fdW;
+    HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        // Only skip the special . and .. entries, not dot-files like .gitignore
+        if (fdW.cFileName[0] == L'.' && (fdW.cFileName[1] == L'\0' || (fdW.cFileName[1] == L'.' && fdW.cFileName[2] == L'\0'))) continue;
+        char fnUtf8[MAX_PATH*4] = {};
+        WideCharToMultiByte(CP_UTF8, 0, fdW.cFileName, -1, fnUtf8, sizeof(fnUtf8), nullptr, nullptr);
+        std::string childRel = rel.empty() ? fnUtf8 : (rel + "/" + fnUtf8);
+        std::string childAbs = base + "\\" + (rel.empty() ? "" : rel+"\\") + fnUtf8;
+        // normalize rel to use forward slashes
+        for (char& c : childRel) if (c == '\\') c = '/';
+        if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            zipAddDir(zb, base, childRel, depth+1);
+        } else {
+            zb.addFile(childRel, childAbs);
+        }
+    } while (FindNextFileW(h, &fdW));
+    FindClose(h);
+}
+
+// Send ZIP response
+static void sendZip(SOCKET s, const std::string& folderPath, const std::string& zipName) {
+    ZipBuilder zb;
+    // Add top-level files
+    std::wstring wpattern = toWide(folderPath + "\\*");
+    WIN32_FIND_DATAW fdW;
+    HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            if (fdW.cFileName[0] == L'.' && (fdW.cFileName[1] == L'\0' || (fdW.cFileName[1] == L'.' && fdW.cFileName[2] == L'\0'))) continue;
+            char fnUtf8[MAX_PATH*4]={};
+            WideCharToMultiByte(CP_UTF8,0,fdW.cFileName,-1,fnUtf8,sizeof(fnUtf8),nullptr,nullptr);
+            std::string childAbs = folderPath + "\\" + fnUtf8;
+            if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                zipAddDir(zb, folderPath, fnUtf8, 1);
+            } else {
+                zb.addFile(fnUtf8, childAbs);
+            }
+        } while (FindNextFileW(h, &fdW));
+        FindClose(h);
+    }
+    auto zipData = zb.finish();
+
+    std::string safeZipName;
+    for (unsigned char c : zipName) {
+        if (c >= 32 && c < 127 && c != '"' && c != '\\') safeZipName += (char)c;
+        else safeZipName += '_';
+    }
+    if (safeZipName.empty()) safeZipName = "folder";
+    std::ostringstream hdr;
+    hdr << "HTTP/1.1 200 OK\r\n"
+        << "Content-Type: application/zip\r\n"
+        << "Content-Disposition: attachment; filename=\"" << safeZipName << ".zip\"\r\n"
+        << "Content-Length: " << zipData.size() << "\r\n"
+        << "Connection: close\r\n"
+        << "Access-Control-Allow-Origin: *\r\n\r\n";
+    std::string hdrStr = hdr.str();
+    send(s, hdrStr.data(), (int)hdrStr.size(), 0);
+    send(s, (const char*)zipData.data(), (int)zipData.size(), 0);
+}
+
+// ────────────────────────────────────────────────────────────────
+//  INLINE PREVIEW SENDER (sends file with correct Content-Type, inline CD)
+// ────────────────────────────────────────────────────────────────
+static std::string mimeForExt(const std::string& ext) {
+    if(ext=="jpg"||ext=="jpeg") return "image/jpeg";
+    if(ext=="png")  return "image/png";
+    if(ext=="gif")  return "image/gif";
+    if(ext=="webp") return "image/webp";
+    if(ext=="bmp")  return "image/bmp";
+    if(ext=="svg")  return "image/svg+xml";
+    if(ext=="avif") return "image/avif";
+    if(ext=="mp4")  return "video/mp4";
+    if(ext=="webm") return "video/webm";
+    if(ext=="ogv")  return "video/ogg";
+    if(ext=="mov")  return "video/quicktime";
+    if(ext=="mp3")  return "audio/mpeg";
+    if(ext=="wav")  return "audio/wav";
+    if(ext=="ogg")  return "audio/ogg";
+    if(ext=="flac") return "audio/flac";
+    if(ext=="m4a")  return "audio/mp4";
+    if(ext=="aac")  return "audio/aac";
+    if(ext=="opus") return "audio/opus";
+    if(ext=="aiff"||ext=="aif") return "audio/aiff";
+    // text types
+    if(ext=="html"||ext=="htm") return "text/html; charset=utf-8";
+    if(ext=="css") return "text/css";
+    if(ext=="js")  return "application/javascript";
+    if(ext=="json") return "application/json";
+    if(ext=="xml") return "application/xml";
+    if(ext=="svg") return "image/svg+xml";
+    // fallback text
+    return "text/plain; charset=utf-8";
+}
+
+static void sendFileInline(SOCKET s, const std::string& filePath, const std::string& name) {
+    HANDLE hf = CreateFileW(toWide(filePath).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hf == INVALID_HANDLE_VALUE) { sendResp(s, 404, "text/plain", "Not found"); return; }
+    LARGE_INTEGER sz; GetFileSizeEx(hf, &sz);
+
+    // Limit inline preview to 20MB
+    const int64_t LIMIT = 20LL*1024*1024;
+    std::string mime;
+    {
+        size_t dot = name.rfind('.');
+        std::string ext = (dot != std::string::npos) ? name.substr(dot+1) : "";
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        mime = mimeForExt(ext);
+    }
+
+    std::ostringstream hdr;
+    hdr << "HTTP/1.1 200 OK\r\n"
+        << "Content-Type: " << mime << "\r\n"
+        << "Content-Disposition: inline\r\n"
+        << "Content-Length: " << std::min(sz.QuadPart, LIMIT) << "\r\n"
+        << "Cache-Control: max-age=60\r\n"
+        << "Connection: close\r\n"
+        << "Access-Control-Allow-Origin: *\r\n\r\n";
+    std::string h = hdr.str();
+    send(s, h.data(), (int)h.size(), 0);
+
+    char chunk[65536];
+    DWORD readBytes = 0;
+    int64_t remaining = std::min(sz.QuadPart, LIMIT);
+    while (remaining > 0) {
+        DWORD toRead = (DWORD)std::min((int64_t)sizeof(chunk), remaining);
+        if (!ReadFile(hf, chunk, toRead, &readBytes, nullptr) || readBytes == 0) break;
+        int sent = 0;
+        while (sent < (int)readBytes) {
+            int r = send(s, chunk+sent, (int)readBytes-sent, 0);
+            if (r <= 0) goto done_inline;
+            sent += r;
+        }
+        remaining -= readBytes;
+    }
+done_inline:
+    CloseHandle(hf);
+}
+
+// ────────────────────────────────────────────────────────────────
+//  ARCHIVE BROWSER (ZIP only)
+// ────────────────────────────────────────────────────────────────
+static std::string browseZip(const std::string& filePath, const std::string& pw) {
+    // Read entire zip into memory
+    HANDLE hf = CreateFileW(toWide(filePath).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hf == INVALID_HANDLE_VALUE) return "{\"error\":\"Cannot open file\"}";
+    LARGE_INTEGER sz; GetFileSizeEx(hf, &sz);
+    if (sz.QuadPart > 256LL*1024*1024) { CloseHandle(hf); return "{\"error\":\"Archive too large to browse\"}"; }
+    std::vector<uint8_t> buf((size_t)sz.QuadPart);
+    DWORD r = 0; ReadFile(hf, buf.data(), (DWORD)buf.size(), &r, nullptr);
+    CloseHandle(hf);
+
+    // Parse local file headers (store-only, basic)
+    std::string json = "{\"entries\":[";
+    bool first = true;
+    size_t i = 0;
+    while (i + 30 <= buf.size()) {
+        // Local file header signature
+        if (buf[i]==0x50&&buf[i+1]==0x4B&&buf[i+2]==0x03&&buf[i+3]==0x04) {
+            uint16_t flags  = buf[i+6]|(buf[i+7]<<8);
+            uint32_t compSz = buf[i+18]|(buf[i+19]<<8)|((uint32_t)buf[i+20]<<16)|((uint32_t)buf[i+21]<<24);
+            uint32_t uncompSz = buf[i+22]|(buf[i+23]<<8)|((uint32_t)buf[i+24]<<16)|((uint32_t)buf[i+25]<<24);
+            uint16_t fnLen  = buf[i+26]|(buf[i+27]<<8);
+            uint16_t extLen = buf[i+28]|(buf[i+29]<<8);
+            if (i+30+fnLen > buf.size()) break;
+            // Check for encryption flag
+            if (flags & 0x01) return "{\"password_protected\":true}";
+            std::string name(buf.begin()+i+30, buf.begin()+i+30+fnLen);
+            bool isDir = (!name.empty() && name.back()=='/');
+            if (!first) json += ",";
+            json += "{\"name\":\"" + jsonEscape(name) + "\",\"size\":" + std::to_string(isDir?0:uncompSz) + ",\"isDir\":" + (isDir?"true":"false") + "}";
+            first = false;
+            i = i + 30 + fnLen + extLen + compSz;
+        } else if (buf[i]==0x50&&buf[i+1]==0x4B&&buf[i+2]==0x01&&buf[i+3]==0x02) {
+            break; // Central directory — stop
+        } else {
+            i++;
+        }
+    }
+    json += "]}";
+    return json;
+}
+
 
 struct UploadedFile { std::string name; uint64_t size = 0; std::string ts; std::string savedPath; };
 
@@ -1485,6 +2163,101 @@ static void handleClient(SOCKET s, std::string clientIP) {
                 Log(L_NET, "FF Download: " + decodeFilenameFromDisk(encodedBasename) + " → " + clientIP);
                 sendFileDownload(s, encodedPath, encodedBasename);
             }
+        }
+
+    } else if (route == "/preview_inline") {
+        // Serve a database file inline for preview
+        std::string id = queryParam(path, "id");
+        if (id.empty()) { sendResp(s, 400, "text/plain", "Missing id"); }
+        else {
+            std::string filePath, name;
+            { std::lock_guard<std::mutex> lk(g_dbMtx);
+              for (auto& e : g_database) if (e.id == id) { filePath=e.savedPath; name=e.name; break; } }
+            if (filePath.empty()) sendResp(s, 404, "text/plain", "Not found");
+            else sendFileInline(s, filePath, decodeFilenameFromDisk(name));
+        }
+
+    } else if (route == "/preview_inline_ff") {
+        // Serve a forwarding folder file inline
+        std::string fp = queryParam(path, "path");
+        if (fp.empty()) { sendResp(s, 400, "text/plain", "Missing path"); }
+        else {
+            bool allowed = false;
+            { std::lock_guard<std::mutex> lk(g_ffMtx);
+              for (auto& ff : g_ffFolders) {
+                  for (auto& c : ff.contents) if (c == fp) { allowed=true; break; }
+                  if (!allowed && ff.subfoldersEnabled) {
+                      // Also check if it's a subpath of this ff
+                      if (fp.rfind(ff.path, 0) == 0) { allowed=true; }
+                  }
+                  if (allowed) break;
+              } }
+            if (!allowed) sendResp(s, 403, "text/plain", "Not in any forwarding folder");
+            else {
+                size_t sl = fp.rfind('\\');
+                if (sl == std::string::npos) sl = fp.rfind('/');
+                std::string bn = (sl != std::string::npos) ? fp.substr(sl+1) : fp;
+                sendFileInline(s, fp, decodeFilenameFromDisk(bn));
+            }
+        }
+
+    } else if (route == "/download_ff_zip") {
+        // Download entire forwarding folder (or subdir) as zip
+        std::string id = queryParam(path, "id");
+        std::string subpath = queryParam(path, "path");
+        if (!id.empty()) {
+            std::string ffPath, ffId;
+            { std::lock_guard<std::mutex> lk(g_ffMtx);
+              for (auto& ff : g_ffFolders) if (ff.id == id) { ffPath=ff.path; ffId=ff.id; break; } }
+            if (ffPath.empty()) sendResp(s, 404, "text/plain", "Forwarding folder not found");
+            else {
+                size_t sl = ffPath.rfind('\\');
+                std::string folderName = (sl != std::string::npos) ? ffPath.substr(sl+1) : ffPath;
+                Log(L_NET, "ZIP download FF [" + ffId + "]: " + ffPath + " → " + clientIP);
+                sendZip(s, ffPath, folderName);
+            }
+        } else if (!subpath.empty()) {
+            // Check it's in an FF
+            bool allowed = false;
+            { std::lock_guard<std::mutex> lk(g_ffMtx);
+              for (auto& ff : g_ffFolders) {
+                  if (ff.subfoldersEnabled && subpath.rfind(ff.path, 0) == 0) { allowed=true; break; }
+              } }
+            if (!allowed) sendResp(s, 403, "text/plain", "Not in any forwarding folder");
+            else {
+                size_t sl = subpath.rfind('\\');
+                std::string folderName = (sl != std::string::npos) ? subpath.substr(sl+1) : subpath;
+                DWORD attrs = GetFileAttributesW(toWide(subpath).c_str());
+                if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY))
+                    sendResp(s, 404, "text/plain", "Directory not found");
+                else { Log(L_NET, "ZIP subdir: " + subpath + " → " + clientIP); sendZip(s, subpath, folderName); }
+            }
+        } else {
+            sendResp(s, 400, "text/plain", "Missing id or path");
+        }
+
+    } else if (route == "/api/archive_browse") {
+        std::string src = queryParam(path, "src");
+        std::string pw  = queryParam(path, "pw");
+        std::string filePath, name;
+        if (src == "db") {
+            std::string id = queryParam(path, "id");
+            { std::lock_guard<std::mutex> lk(g_dbMtx);
+              for (auto& e : g_database) if (e.id == id) { filePath=e.savedPath; name=e.name; break; } }
+        } else {
+            filePath = queryParam(path, "path");
+            size_t sl = filePath.rfind('\\');
+            if (sl == std::string::npos) sl = filePath.rfind('/');
+            name = (sl != std::string::npos) ? filePath.substr(sl+1) : filePath;
+        }
+        if (filePath.empty()) sendResp(s, 404, "application/json", "{\"error\":\"Not found\"}");
+        else {
+            std::string ext = name;
+            size_t dot = ext.rfind('.');
+            if (dot != std::string::npos) ext = ext.substr(dot+1);
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            if (ext == "zip") sendResp(s, 200, "application/json", browseZip(filePath, pw));
+            else sendResp(s, 200, "application/json", "{\"error\":\"Unsupported archive type\"}");
         }
 
     } else if (route == "/upload" && method == "POST") {

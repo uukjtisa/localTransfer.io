@@ -62,6 +62,7 @@ void dbSave() {
         auto& ff = g_ffFolders[i];
         f << "  {\"id\":\""   << jsonEscape(ff.id)   << "\",";
         f << "\"path\":\""    << jsonEscape(ff.path) << "\",";
+        f << "\"subfolders_enabled\":" << (ff.subfoldersEnabled ? "true" : "false") << ",";
         f << "\"contents\":[";
         for (size_t j = 0; j < ff.contents.size(); ++j) {
             f << "\"" << jsonEscape(ff.contents[j]) << "\"";
@@ -116,6 +117,15 @@ void dbLoad() {
             ForwardingFolder ff;
             ff.id   = jsGetStr(obj, "id");
             ff.path = jsGetStr(obj, "path");
+            // Parse subfoldersEnabled
+            {
+                size_t sp = obj.find("\"subfolders_enabled\":");
+                if (sp != std::string::npos) {
+                    std::string rest = obj.substr(sp + 21);
+                    rest = rest.substr(rest.find_first_not_of(" \t\r\n"));
+                    ff.subfoldersEnabled = (rest.rfind("true",0)==0);
+                }
+            }
             std::string contArr = jsGetArrayStr(obj, "contents");
             if (!contArr.empty()) {
                 size_t p = 1;
@@ -159,6 +169,65 @@ void dbAddEntry(const DbEntry& e) {
 }
 
 // ────────────────────────────────────────────────────────────────
+//  RECURSIVE TREE HELPERS (used by heartbeat + buildDbJson)
+// ────────────────────────────────────────────────────────────────
+static FfTreeEntry buildTree(const std::string& dirPath) {
+    FfTreeEntry node;
+    node.fullPath = dirPath;
+    node.isDir    = true;
+    // get basename
+    size_t sl = dirPath.rfind('\\');
+    if (sl == std::string::npos) sl = dirPath.rfind('/');
+    node.name = (sl != std::string::npos) ? dirPath.substr(sl+1) : dirPath;
+
+    std::wstring wpattern = toWide(dirPath + "\\*");
+    WIN32_FIND_DATAW fdW;
+    HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
+    if (h == INVALID_HANDLE_VALUE) return node;
+    do {
+        std::wstring wn = fdW.cFileName;
+        if (wn == L"." || wn == L"..") continue;
+        char fnUtf8[MAX_PATH * 4] = {};
+        WideCharToMultiByte(CP_UTF8, 0, fdW.cFileName, -1, fnUtf8, sizeof(fnUtf8), nullptr, nullptr);
+        std::string childPath = dirPath + "\\" + fnUtf8;
+
+        if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            node.children.push_back(buildTree(childPath));
+        } else {
+            FfTreeEntry file;
+            file.fullPath = childPath;
+            file.name     = fnUtf8;
+            file.isDir    = false;
+            LARGE_INTEGER li;
+            li.HighPart = fdW.nFileSizeHigh;
+            li.LowPart  = fdW.nFileSizeLow;
+            file.size   = (uint64_t)li.QuadPart;
+            node.children.push_back(file);
+        }
+    } while (FindNextFileW(h, &fdW));
+    FindClose(h);
+    return node;
+}
+
+static std::string treeToJson(const FfTreeEntry& node) {
+    std::string j = "{";
+    j += "\"name\":\"" + jsonEscape(node.name) + "\",";
+    j += "\"path\":\"" + jsonEscape(node.fullPath) + "\",";
+    j += "\"isDir\":"  + std::string(node.isDir ? "true" : "false") + ",";
+    j += "\"size\":"   + std::to_string(node.size);
+    if (node.isDir) {
+        j += ",\"children\":[";
+        for (size_t i = 0; i < node.children.size(); ++i) {
+            if (i) j += ",";
+            j += treeToJson(node.children[i]);
+        }
+        j += "]";
+    }
+    j += "}";
+    return j;
+}
+
+// ────────────────────────────────────────────────────────────────
 //  SSE BROADCAST
 // ────────────────────────────────────────────────────────────────
 std::string buildDbJson() {
@@ -179,6 +248,11 @@ std::string buildDbJson() {
         auto& ff = g_ffFolders[i];
         json += "{\"id\":\""   + jsonEscape(ff.id)   + "\",";
         json += "\"path\":\"" + jsonEscape(ff.path) + "\",";
+        json += "\"subfolders_enabled\":" + std::string(ff.subfoldersEnabled ? "true" : "false") + ",";
+        if (ff.subfoldersEnabled) {
+            // Send full recursive tree
+            json += "\"tree\":" + treeToJson(ff.tree) + ",";
+        }
         json += "\"contents\":[";
         for (size_t j = 0; j < ff.contents.size(); ++j) {
             std::string fp = ff.contents[j];
@@ -262,22 +336,49 @@ void heartbeatThread() {
         {
             std::lock_guard<std::mutex> lk(g_ffMtx);
             for (auto& ff : g_ffFolders) {
-                std::vector<std::string> found;
-                std::wstring wpattern = toWide(ff.path + "\\*");
-                WIN32_FIND_DATAW fdW;
-                HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
-                if (h != INVALID_HANDLE_VALUE) {
-                    do {
-                        if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
-                        char fnUtf8[MAX_PATH * 4] = {};
-                        WideCharToMultiByte(CP_UTF8, 0, fdW.cFileName, -1, fnUtf8, sizeof(fnUtf8), nullptr, nullptr);
-                        found.push_back(ff.path + "\\" + fnUtf8);
-                    } while (FindNextFileW(h, &fdW));
-                    FindClose(h);
-                }
-                if (found != ff.contents) {
-                    ff.contents = found;
-                    changed = true;
+                if (ff.subfoldersEnabled) {
+                    // Rebuild full tree recursively
+                    FfTreeEntry newTree = buildTree(ff.path);
+                    // Compare by serializing to detect changes (simple but works)
+                    std::string oldJson = treeToJson(ff.tree);
+                    std::string newJson = treeToJson(newTree);
+                    if (oldJson != newJson) {
+                        ff.tree = std::move(newTree);
+                        changed = true;
+                    }
+                    // Also keep flat contents for backward compat
+                    std::vector<std::string> found;
+                    std::wstring wpattern = toWide(ff.path + "\\*");
+                    WIN32_FIND_DATAW fdW;
+                    HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
+                    if (h != INVALID_HANDLE_VALUE) {
+                        do {
+                            if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                            char fnUtf8[MAX_PATH * 4] = {};
+                            WideCharToMultiByte(CP_UTF8, 0, fdW.cFileName, -1, fnUtf8, sizeof(fnUtf8), nullptr, nullptr);
+                            found.push_back(ff.path + "\\" + fnUtf8);
+                        } while (FindNextFileW(h, &fdW));
+                        FindClose(h);
+                    }
+                    if (found != ff.contents) { ff.contents = found; changed = true; }
+                } else {
+                    std::vector<std::string> found;
+                    std::wstring wpattern = toWide(ff.path + "\\*");
+                    WIN32_FIND_DATAW fdW;
+                    HANDLE h = FindFirstFileW(wpattern.c_str(), &fdW);
+                    if (h != INVALID_HANDLE_VALUE) {
+                        do {
+                            if (fdW.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                            char fnUtf8[MAX_PATH * 4] = {};
+                            WideCharToMultiByte(CP_UTF8, 0, fdW.cFileName, -1, fnUtf8, sizeof(fnUtf8), nullptr, nullptr);
+                            found.push_back(ff.path + "\\" + fnUtf8);
+                        } while (FindNextFileW(h, &fdW));
+                        FindClose(h);
+                    }
+                    if (found != ff.contents) {
+                        ff.contents = found;
+                        changed = true;
+                    }
                 }
             }
         }
