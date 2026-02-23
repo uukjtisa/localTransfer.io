@@ -42,8 +42,6 @@
 
 
 # Extra
-*.bat
-*.exe
 *.config
 *.json
 
