@@ -20,7 +20,7 @@ set LINK=-static -lws2_32 -lshell32 -static-libgcc -static-libstdc++ -Wl,-Bstati
 set SUBSYS=-mconsole
 
 :: ── Source files ──
-set SRCS=globals.cpp utils.cpp database.cpp mdns.cpp http_server.cpp main.cpp
+set SRCS=globals.cpp utils.cpp database.cpp media.cpp mdns.cpp http_server.cpp main.cpp
 
 :: ── Clean target ──
 if /i "%1"=="clean" (

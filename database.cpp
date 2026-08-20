@@ -4,6 +4,7 @@
 //  and the heartbeat thread.
 // ================================================================
 #include "database.h"
+#include "media.h"
 #include "utils.h"
 
 // ────────────────────────────────────────────────────────────────
@@ -243,7 +244,12 @@ std::string buildDbJson() {
         json += "\"name\":\""       + jsonEscape(e.name)      + "\",";
         json += "\"size\":"         + std::to_string(e.size)  + ",";
         json += "\"timestamp\":\"" + jsonEscape(e.timestamp)  + "\",";
-        json += "\"from\":\""       + jsonEscape(e.from)      + "\"}";
+        json += "\"from\":\""       + jsonEscape(e.from)      + "\",";
+        // Media extras, present only once the warmer (or a request) has built
+        // them. Absent entries simply render as a type icon.
+        json += "\"thumb\":" + std::string(mediaHasThumb(e.id) ? "true" : "false") + ",";
+        json += "\"clip\":"  + std::string(mediaHasClip(e.id)  ? "true" : "false") + ",";
+        json += "\"dur\":"   + std::to_string(mediaDuration(e.id)) + "}";
         if (k + 1 < g_database.size()) json += ",";
     }
     json += "],\"forwarding_folders\":[";

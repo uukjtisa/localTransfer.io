@@ -4,6 +4,7 @@
 //  multipart parser, client handler, port detection, server thread.
 // ================================================================
 #include "http_server.h"
+#include "media.h"
 #include "utils.h"
 #include "database.h"
 
@@ -1278,7 +1279,7 @@ function thumbHTML(f, opts){
   const pv = (f.pv && S.hoverPv) ? f.pv : null;
   const isVid = c==='video';
   let inner = `<span class="ph"><svg class="ic"><use href="#${ICON[c]}"/></svg><b class="ext">${ext(f.name||f.n||"").slice(0,5)||"file"}</b></span>`;
-  if(th) inner += `<img src="${th}" alt="" loading="lazy">`;
+  if(th) inner += `<img src="${th}" alt="" loading="lazy" onerror="this.remove();var t=this.closest('.thumb');if(t)t.classList.remove('has-media');">`;
   if(pv && S.hoverPv) inner += `<video src="${pv}" muted loop playsinline preload="none"></video>`;
   if(isVid){
     inner += `<span class="play"><svg class="ic lg f"><use href="#p-play"/></svg></span>`;
@@ -2737,9 +2738,15 @@ function ingestDb(d){
     const name = decodeDisplayName(f.name);
     const u = dbUrls(f.id);
     const isImg = NATIVE_IMG.has(ext(name));
+    const enc = encodeURIComponent(f.id);
+    // /thumb serves a downscaled frame when ffmpeg made one, and falls back to
+    // the original for images. Videos only get a thumbnail if one exists, so
+    // ask for it only when the server says so — otherwise the icon stands.
     return { id:f.id, name, size:+f.size||0, t:parseTs(f.timestamp),
              from:f.from||'', url:u.url, dlUrl:u.dlUrl,
-             th: isImg ? ('/thumb?id='+encodeURIComponent(f.id)) : null };
+             th:  (f.thumb || isImg) ? ('/thumb?id='+enc) : null,
+             pv:  f.clip ? ('/preview_clip?id='+enc) : null,
+             dur: +f.dur || 0 };
   });
 
   const ffs = d.forwarding_folders||[];
@@ -2755,9 +2762,12 @@ function ffLeaf(path, rawName, size, mtime){
   const name = decodeDisplayName(rawName);
   const u = ffUrls(path);
   const isImg = NATIVE_IMG.has(ext(name));
+  const isVid = NATIVE_VID.has(ext(name));
+  // /thumb_ff generates on demand and 404s when it cannot; a failed <img> is
+  // removed and the type icon shows through.
   return { n:name, s:size, t:mtime||Date.now(), _p:path,
            url:u.url, dlUrl:u.dlUrl,
-           th: isImg ? ('/thumb_ff?path='+encodeURIComponent(path)) : null };
+           th: (isImg || isVid) ? ('/thumb_ff?path='+encodeURIComponent(path)) : null };
 }
 function convTree(node){
   return (node.children||[]).map(c=> c.isDir
@@ -4024,13 +4034,36 @@ static void handleClient(SOCKET s, std::string clientIP) {
         }
 
     } else if (route == "/thumb") {
-        // Thumbnail for a database image. Same file as the preview for now.
+        // Downscaled thumbnail when ffmpeg produced one, otherwise the original
+        // image inline. Never a hard failure: the page falls back to an icon.
         std::string id = queryParam(path, "id");
         std::string filePath, name;
         { std::lock_guard<std::mutex> lk(g_dbMtx);
           for (auto& e : g_database) if (e.id == id) { filePath=e.savedPath; name=e.name; break; } }
-        if (filePath.empty()) sendResp(s, 404, "text/plain", "Not found");
-        else sendFileInline(s, filePath, decodeFilenameFromDisk(name), hdrs);
+        if (filePath.empty()) { sendResp(s, 404, "text/plain", "Not found"); }
+        else {
+            std::string ext = name; size_t d = ext.rfind('.');
+            ext = (d == std::string::npos) ? "" : ext.substr(d + 1);
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            bool isVid = (ext=="mp4"||ext=="mkv"||ext=="mov"||ext=="avi"||ext=="webm"||
+                          ext=="m4v"||ext=="wmv"||ext=="flv"||ext=="mpeg"||ext=="mpg"||ext=="3gp");
+            if (mediaEnsureThumb(id, filePath, isVid))
+                sendFileInline(s, mediaThumbFile(id), "thumb.jpg", hdrs);
+            else if (isVid)
+                sendResp(s, 404, "text/plain", "No thumbnail");   // icon fallback
+            else
+                sendFileInline(s, filePath, decodeFilenameFromDisk(name), hdrs);
+        }
+
+    } else if (route == "/preview_clip") {
+        // Short muted hover-preview clip. 404 simply means "not available".
+        std::string id = queryParam(path, "id");
+        std::string filePath;
+        { std::lock_guard<std::mutex> lk(g_dbMtx);
+          for (auto& e : g_database) if (e.id == id) { filePath=e.savedPath; break; } }
+        if (filePath.empty())                      sendResp(s, 404, "text/plain", "Not found");
+        else if (mediaEnsureClip(id, filePath))    sendFileInline(s, mediaClipFile(id), "preview.mp4", hdrs);
+        else                                       sendResp(s, 404, "text/plain", "No preview");
 
     } else if (route == "/thumb_ff") {
         // Thumbnail for a forwarding-folder image. MUST repeat the membership
@@ -4048,7 +4081,18 @@ static void handleClient(SOCKET s, std::string clientIP) {
             size_t sl = fp.rfind('\\');
             if (sl == std::string::npos) sl = fp.rfind('/');
             std::string bn = (sl != std::string::npos) ? fp.substr(sl+1) : fp;
-            sendFileInline(s, fp, decodeFilenameFromDisk(bn), hdrs);
+            std::string ext = bn; size_t d = ext.rfind('.');
+            ext = (d == std::string::npos) ? "" : ext.substr(d + 1);
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            bool isVid = (ext=="mp4"||ext=="mkv"||ext=="mov"||ext=="avi"||ext=="webm"||
+                          ext=="m4v"||ext=="wmv"||ext=="flv"||ext=="mpeg"||ext=="mpg"||ext=="3gp");
+            std::string key = mediaKeyForPath(fp);
+            if (mediaEnsureThumb(key, fp, isVid))
+                sendFileInline(s, mediaThumbFile(key), "thumb.jpg", hdrs);
+            else if (isVid)
+                sendResp(s, 404, "text/plain", "No thumbnail");
+            else
+                sendFileInline(s, fp, decodeFilenameFromDisk(bn), hdrs);
         }
 
     } else if (route == "/preview_inline") {

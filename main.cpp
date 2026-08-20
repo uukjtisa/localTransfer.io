@@ -10,6 +10,7 @@
 #include "database.h"
 #include "http_server.h"
 #include "mdns.h"
+#include "media.h"
 
 // ────────────────────────────────────────────────────────────────
 //  LINE EDITOR  (history + cursor movement + autocomplete)
@@ -1320,6 +1321,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // ── Optional media assist (ffmpeg) ──
+    mediaInit();
+
     // ── Load and update database ──
     Log(L_INFO, "Loading database...");
     dbLoad();
@@ -1371,6 +1375,9 @@ int main(int argc, char* argv[]) {
     // ── Start heartbeat thread ──
     std::thread hb(heartbeatThread);
 
+    // Fills the thumbnail cache in the background; exits immediately without ffmpeg.
+    std::thread warm(mediaWarmerThread);
+
     Sleep(200);
 
     if (!g_running) {
@@ -1406,6 +1413,7 @@ int main(int argc, char* argv[]) {
     mdnsStop();
     if (g_srvThread) { g_srvThread->join(); delete g_srvThread; g_srvThread = nullptr; }
     hb.join();
+    warm.join();
     WSACleanup();
     Log(L_OK, "localTransfer.io stopped. Goodbye.");
     SetConsoleTextAttribute(g_hCon, 7);

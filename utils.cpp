@@ -107,8 +107,16 @@ std::string nowHuman() {
 std::wstring toWide(const std::string& utf8) {
     if (utf8.empty()) return L"";
     int n = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
+    if (n <= 0) return L"";
     std::wstring w(n, 0);
     MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, &w[0], n);
+    // Passing -1 as the input length makes MultiByteToWideChar count the
+    // terminating NUL, so the string above is one character too long and
+    // ends with an embedded L'\0'. Callers that only use .c_str() never
+    // notice, but CONCATENATING such a string silently truncates whatever
+    // follows — a command line built this way loses everything after the
+    // first path. Trim it so the length is the real character count.
+    while (!w.empty() && w.back() == L'\0') w.pop_back();
     return w;
 }
 
