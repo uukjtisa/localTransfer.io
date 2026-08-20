@@ -20,9 +20,9 @@
 
 // Order matters: the first entry is the one advertised in logs and SRV.
 std::vector<std::string> g_mdnsNames = {
-    "localtransfer-io.local",   // single label, resolves on Windows
+    "localTransfer.io.local",   // the headline name; multi-label, Apple-friendly
+    "localtransfer-io.local",   // single label — what Windows reliably resolves
     "localtransfer.local",      // plainest fallback
-    "localTransfer.io.local",   // multi-label; Apple only
 };
 
 static std::atomic<bool> g_mdnsRun{false};
@@ -309,8 +309,11 @@ void mdnsStart(int servicePort) {
     std::string others;
     for (size_t i = 1; i < g_mdnsNames.size(); ++i) others += (others.empty() ? "" : ", ") + g_mdnsNames[i];
     if (!others.empty()) Log(L_INFO, "  also answering: " + others);
-    Log(L_INFO, "  Works on iPhone/iPad/Mac/Windows. Chrome on Android does NOT resolve .local —");
-    Log(L_INFO, "  use the numeric http://<ip>" + suffix + " address there.");
+    // Measured, not assumed: Windows resolves only single-label .local names,
+    // so the dotted form works on Apple devices but not from a Windows box.
+    Log(L_INFO, "  Apple devices resolve all of the above.");
+    Log(L_INFO, "  Windows resolves only the single-label names (localtransfer-io.local).");
+    Log(L_INFO, "  Chrome on Android resolves none of them — use http://<ip>" + suffix + " there.");
 }
 
 void mdnsStop() {

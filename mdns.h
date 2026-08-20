@@ -1,7 +1,7 @@
 // ================================================================
 //  localTransfer.io  –  mdns.h
 //  Minimal multicast-DNS responder so the server can be reached as
-//  http://localtransfer.local/ with no configuration on any device.
+//  http://localTransfer.io.local/ with no configuration on any device.
 //
 //  Scope, deliberately: this answers A queries for one hostname and
 //  advertises one _http._tcp service. It is not a general mDNS stack
