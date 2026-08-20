@@ -16,11 +16,11 @@ set EXE=localTransfer.io.exe
 set CXX=g++
 set STD=-std=c++17
 set WARN=-Wall -Wextra -Wno-unused-parameter
-set LINK=-lws2_32 -lshell32 -static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive
+set LINK=-static -lws2_32 -lshell32 -static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive
 set SUBSYS=-mconsole
 
 :: ── Source files ──
-set SRCS=globals.cpp utils.cpp database.cpp http_server.cpp main.cpp
+set SRCS=globals.cpp utils.cpp database.cpp mdns.cpp http_server.cpp main.cpp
 
 :: ── Clean target ──
 if /i "%1"=="clean" (

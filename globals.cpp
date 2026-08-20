@@ -46,3 +46,7 @@ std::atomic<uint64_t> g_uploadLimitPct{80};
 
 std::vector<ForwardingFolder> g_ffFolders;
 std::mutex                    g_ffMtx;
+
+SOCKET            g_srvListenSocket = INVALID_SOCKET;
+std::atomic<bool> g_srvStop{false};
+std::thread*      g_srvThread       = nullptr;

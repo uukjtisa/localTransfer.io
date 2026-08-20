@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "database.h"
 #include "http_server.h"
+#include "mdns.h"
 
 // ────────────────────────────────────────────────────────────────
 //  LINE EDITOR  (history + cursor movement + autocomplete)
@@ -26,6 +27,7 @@ static const CmdCompletion COMPLETIONS[] = {
     {"/status",                           "Server status & statistics"},
     {"/files",                            "List received files"},
     {"/port",                             "Show active port"},
+    {"/port --switch ",                  "Switch to a different port  (needs: port)"},
     {"/ips",                              "Show network addresses"},
     {"/saving_dir_change ",               "Change saving directory  (needs: path)"},
     {"/sdc ",                             "Alias: saving_dir_change (needs: path)"},
@@ -59,6 +61,11 @@ static const CmdCompletion COMPLETIONS[] = {
     {"/pastebin --append-nl ",            "Append with newlines  (needs: \"text\")"},
     {"/pastebin --copy",                  "Copy pastebin to clipboard"},
     {"/pb --copy",                        "Alias: pastebin --copy"},
+    {"/open --db",                        "Open the saving folder in Explorer"},
+    {"/open --ff ",                       "Open a forwarding folder  (needs: id)"},
+    {"/open --ff all",                    "Open every forwarding folder"},
+    {"/open --config",                    "Open .localTransfer.config in the editor"},
+    {"/open --web",                       "Open the page in your browser"},
     {"/clear",                            "Clear terminal (reprint banner)"},
     {"/clear --absolute",                 "Clear terminal (no banner)"},
     {"/exit",                             "Stop server and exit"},
@@ -211,6 +218,16 @@ static std::string validateCommand(const std::string& raw) {
     if ((lo == "/storage_limit" || lo == "/sl") ) {
         // no arg = show current, that's valid
     }
+
+    // /port --switch: needs a port number
+    if (lo == "/port --switch" || lo == "/port -s")
+        return "⚠ /port --switch requires a port number. Usage: /port --switch <port>";
+
+    // /open: needs a target
+    if (lo == "/open")
+        return "⚠ /open needs a target. Try: /open --db | --ff <id> | --ff all | --config | --web";
+    if (lo == "/open --ff")
+        return "⚠ /open --ff requires an id (or 'all'). Run /ff --list to see them.";
 
     // /saving_dir_change: needs a path arg
     if ((lo == "/saving_dir_change" || lo == "/sdc"))
@@ -431,6 +448,7 @@ static void printHelp() {
     std::cout << "  │ /status                              │ Server status & statistics    │\n";
     std::cout << "  │ /files                               │ List all received files       │\n";
     std::cout << "  │ /port  /ips                          │ Show port / network addresses │\n";
+    std::cout << "  │ /port --switch <port>                │ Switch server to a new port   │\n";
     std::cout << "  │ /saving_dir_change <path>  /sdc      │ Change saving directory       │\n";
     SetConsoleTextAttribute(g_hCon, 3);
     std::cout << "  ├──────────────────────────────────────┼───────────────────────────────┤\n";
@@ -464,6 +482,12 @@ static void printHelp() {
     std::cout << "  │ /pastebin --append \"text\"            │ Append text (no separator)    │\n";
     std::cout << "  │ /pastebin --append-nl \"text\"         │ Append with 2 newlines        │\n";
     std::cout << "  │ /pastebin --copy  /pb                │ Copy to clipboard / alias     │\n";
+    SetConsoleTextAttribute(g_hCon, 3);
+    std::cout << "  ├──────────────────────────────────────┼───────────────────────────────┤\n";
+    SetConsoleTextAttribute(g_hCon, 7);
+    std::cout << "  │ /open --db                           │ Open saving folder            │\n";
+    std::cout << "  │ /open --ff <id> | --ff all           │ Open forwarding folder(s)     │\n";
+    std::cout << "  │ /open --config  /open --web          │ Open config file / browser    │\n";
     SetConsoleTextAttribute(g_hCon, 3);
     std::cout << "  ├──────────────────────────────────────┼───────────────────────────────┤\n";
     SetConsoleTextAttribute(g_hCon, 7);
@@ -665,8 +689,50 @@ static void processCommand(const std::string& raw) {
             std::cout << "\n";
         }
 
-    } else if (lo == "/port") {
-        Log(L_INFO, "Active port: " + std::to_string(g_port.load()));
+    } else if (lo.rfind("/port", 0) == 0) {
+        std::string rest = trim(lo.substr(5));
+        if (rest.empty()) {
+            Log(L_INFO, "Active port: " + std::to_string(g_port.load()));
+        } else if (rest.rfind("--switch", 0) == 0 || rest.rfind("-s ", 0) == 0 || rest == "-s") {
+            std::string portStr;
+            if (rest.rfind("--switch", 0) == 0) portStr = trim(rest.substr(8));
+            else                                 portStr = trim(rest.substr(2));
+            int newPort = 0;
+            try { newPort = std::stoi(portStr); } catch(...) {}
+            if (newPort < 1 || newPort > 65535) {
+                Log(L_ERR, "Invalid port. Usage: /port --switch <1-65535>");
+            } else if (newPort == g_port.load()) {
+                Log(L_INFO, "Already running on port " + std::to_string(newPort));
+            } else if (!portAvailable(newPort)) {
+                Log(L_ERR, "Port " + std::to_string(newPort) + " is already in use.");
+            } else {
+                Log(L_INFO, "Switching from port " + std::to_string(g_port.load())
+                            + " to " + std::to_string(newPort) + " ...");
+                // Stop current server thread
+                g_srvStop = true;
+                if (g_srvListenSocket != INVALID_SOCKET) closesocket(g_srvListenSocket);
+                if (g_srvThread) { g_srvThread->join(); delete g_srvThread; g_srvThread = nullptr; }
+                g_srvStop = false;
+                // Drop SSE clients (they'll reconnect)
+                { std::lock_guard<std::mutex> lk(g_sseMtx);
+                  for (SOCKET s : g_sseClients) closesocket(s);
+                  g_sseClients.clear(); }
+                // Start on new port
+                g_port = newPort;
+                g_srvThread = new std::thread(serverThread, newPort);
+                Sleep(200);
+                auto ips = getLocalIPs();
+                Log(L_OK, "Now listening on port " + std::to_string(newPort));
+                for (auto& ip : ips) {
+                    SetConsoleTextAttribute(g_hCon, 11);
+                    std::cout << "    http://" << ip << ":" << newPort << "/\n";
+                }
+                SetConsoleTextAttribute(g_hCon, 7);
+                std::cout << "\n";
+            }
+        } else {
+            Log(L_WARN, "Usage: /port  |  /port --switch <port>");
+        }
 
     } else if (lo == "/ips") {
         auto ips = getLocalIPs();
@@ -1109,6 +1175,55 @@ static void processCommand(const std::string& raw) {
             Log(L_INFO, "Pastebin commands: --clear  --overwrite \"\"  --append \"\"  --append-nl \"\"  --copy");
         }
 
+    } else if (lo.rfind("/open", 0) == 0) {
+        std::string rest = trim(lo.substr(5));
+        // Opens a folder in Explorer / a file in its default app. Host-side only —
+        // the browser UI hides these actions for remote devices (see is_host).
+        auto openPath = [](const std::string& p, const std::string& label) {
+            if (p.empty()) { Log(L_ERR, "Nothing to open for " + label); return; }
+            DWORD attrs = GetFileAttributesW(toWide(p).c_str());
+            if (attrs == INVALID_FILE_ATTRIBUTES) { Log(L_ERR, "Path no longer exists: " + p); return; }
+            HINSTANCE r = ShellExecuteW(nullptr, L"open", toWide(p).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            if ((INT_PTR)r <= 32) Log(L_ERR, "Could not open: " + p);
+            else                  Log(L_OK,  "Opened " + label + ": " + p);
+        };
+
+        if (rest.empty()) {
+            Log(L_WARN, "Usage: /open --db | --ff <id> | --ff all | --config | --web");
+
+        } else if (rest == "--db" || rest == "-d") {
+            openPath(getSavingDir(), "saving folder");
+
+        } else if (rest == "--config" || rest == "-c") {
+            openPath(getConfigPath(), "config file");
+
+        } else if (rest == "--web" || rest == "-w") {
+            std::string url = "http://localhost:" + std::to_string(g_port.load()) + "/";
+            ShellExecuteW(nullptr, L"open", toWide(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            Log(L_OK, "Opened " + url);
+
+        } else if (rest.rfind("--ff", 0) == 0) {
+            std::string arg = trim(rest.substr(4));
+            if (arg.empty()) {
+                Log(L_ERR, "Usage: /open --ff <id>   or   /open --ff all");
+            } else if (arg == "all") {
+                std::vector<std::pair<std::string,std::string>> all;
+                { std::lock_guard<std::mutex> lk(g_ffMtx);
+                  for (auto& ff : g_ffFolders) all.push_back({ff.id, ff.path}); }
+                if (all.empty()) Log(L_WARN, "No forwarding folders registered.");
+                else for (auto& p : all) openPath(p.second, "forwarding folder [" + p.first + "]");
+            } else {
+                std::string found;
+                { std::lock_guard<std::mutex> lk(g_ffMtx);
+                  for (auto& ff : g_ffFolders) if (ff.id == arg) { found = ff.path; break; } }
+                if (found.empty()) Log(L_ERR, "No forwarding folder with id '" + arg + "'. Try /ff --list");
+                else openPath(found, "forwarding folder [" + arg + "]");
+            }
+
+        } else {
+            Log(L_WARN, "Unknown /open target. Try: --db | --ff <id> | --ff all | --config | --web");
+        }
+
     } else if (lo.rfind("/clear", 0) == 0) {
         std::string clearArg = trim(lo.substr(6));
         system("cls");
@@ -1230,7 +1345,13 @@ int main(int argc, char* argv[]) {
     }
 
     // ── Find port ──
-    int port = (cliPort > 0) ? cliPort : findOpenPort();
+    // Prefer 80 when it is free: it drops the ":8080" from every URL and is
+    // not a privileged port on Windows. Fall back to the usual list otherwise.
+    int port = cliPort;
+    if (port <= 0) {
+        if (portAvailable(80)) { port = 80; Log(L_OK, "Port 80 is free — using it (no :port in URLs)"); }
+        else                   { port = findOpenPort(); }
+    }
     if (port < 0) {
         Log(L_ERR, "No available port found! Exiting.");
         WSACleanup(); return 1;
@@ -1241,7 +1362,11 @@ int main(int argc, char* argv[]) {
     printBanner(port, ips);
 
     // ── Start server thread ──
-    std::thread srv(serverThread, port);
+    g_srvThread = new std::thread(serverThread, port);
+
+    // ── Advertise <name>.local so phones can skip the numeric address ──
+    // Zero configuration; note Chrome on Android will not resolve .local.
+    mdnsStart(port);
 
     // ── Start heartbeat thread ──
     std::thread hb(heartbeatThread);
@@ -1250,7 +1375,8 @@ int main(int argc, char* argv[]) {
 
     if (!g_running) {
         Log(L_ERR, "Server failed to start.");
-        srv.join(); WSACleanup(); return 1;
+        if (g_srvThread) { g_srvThread->join(); delete g_srvThread; g_srvThread = nullptr; }
+        WSACleanup(); return 1;
     }
 
     Log(L_OK, "Server started on port " + std::to_string(port));
@@ -1277,7 +1403,8 @@ int main(int argc, char* argv[]) {
     { std::lock_guard<std::mutex> lk(g_sseMtx);
       for (SOCKET s : g_sseClients) closesocket(s);
       g_sseClients.clear(); }
-    srv.join();
+    mdnsStop();
+    if (g_srvThread) { g_srvThread->join(); delete g_srvThread; g_srvThread = nullptr; }
     hb.join();
     WSACleanup();
     Log(L_OK, "localTransfer.io stopped. Goodbye.");

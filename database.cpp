@@ -233,15 +233,18 @@ static std::string treeToJson(const FfTreeEntry& node) {
 std::string buildDbJson() {
     std::lock_guard<std::mutex> lk(g_dbMtx);
     std::lock_guard<std::mutex> lkFf(g_ffMtx);
+    // Newest first. dbAddEntry() push_back()s, so the vector is oldest-first;
+    // emit it reversed so the client gets a sane default order.
     std::string json = "{\"files\":[";
-    for (size_t i = 0; i < g_database.size(); ++i) {
+    for (size_t k = 0; k < g_database.size(); ++k) {
+        size_t i = g_database.size() - 1 - k;
         auto& e = g_database[i];
         json += "{\"id\":\""        + jsonEscape(e.id)        + "\",";
         json += "\"name\":\""       + jsonEscape(e.name)      + "\",";
         json += "\"size\":"         + std::to_string(e.size)  + ",";
         json += "\"timestamp\":\"" + jsonEscape(e.timestamp)  + "\",";
         json += "\"from\":\""       + jsonEscape(e.from)      + "\"}";
-        if (i + 1 < g_database.size()) json += ",";
+        if (k + 1 < g_database.size()) json += ",";
     }
     json += "],\"forwarding_folders\":[";
     for (size_t i = 0; i < g_ffFolders.size(); ++i) {

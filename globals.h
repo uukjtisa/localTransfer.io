@@ -119,3 +119,8 @@ extern std::atomic<uint64_t> g_uploadLimitPct;
 // Forwarding folders
 extern std::vector<ForwardingFolder> g_ffFolders;
 extern std::mutex                    g_ffMtx;
+
+// Server restart control
+extern SOCKET            g_srvListenSocket;
+extern std::atomic<bool> g_srvStop;
+extern std::thread*      g_srvThread;
